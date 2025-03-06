@@ -3,6 +3,9 @@ title: "Final Project Proposal"
 subtitle: "Math 244, Spring 2025"
 author: "Julia, Vishnu, and Mia"
 format: pdf
+execute:
+  warnings: false
+  errors: false
 editor: visual
 ---
 
