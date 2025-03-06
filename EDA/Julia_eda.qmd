@@ -2,25 +2,41 @@
 title: "Julia EDA"
 format: pdf
 editor: visual
+execute:
+  warnings: false
+  messages: false
+  errors: true
 ---
 
-## Quarto
+```{r setup}
+#load libraries
+library(tidyverse)
+library(here)
+library(ggplot2)
+library(cowplot)
+#read in data
+df <- read.csv(here('data', 'ultimate_college_championship.csv')) %>%
+  mutate(across(c(level, gender, division, team_name), as.factor))
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
+```
+Explore data
 ```{r}
-1 + 1
+#bar plot players count
+df %>% ggplot(aes(x = level, fill = gender)) + 
+  geom_bar(width = 0.5) +
+  labs(x = "Division", y = "Number of players", fill = "Gender",
+       title = "Number of players by division and gender") +
+  theme_cowplot()
+```
+```{r}
+str(df)
+df %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = gender)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F)
+?geom_smooth
+
+
 ```
 
-You can add options to executable code like this
 
-```{r}
-#| echo: false
-2 * 2
-```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+
