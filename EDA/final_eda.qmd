@@ -19,7 +19,11 @@ Answer the following questions:
 
 -   What is your outcome variable(s)? How well does it measure the outcome you are interested? How does it relate to your expectations?
 
-Our outcome variable is plus_minus, which is the difference between the amount of points scored by an individual player's team while that player is on the field
+Our outcome variable is plus_minus, which is the difference between the amount of points scored by an individual player's team while that player is on the field and the amount of points scored by the opposing team while that player is on the field.
+
+Essentially, +/- for a select player = points scored by player's team (while player is on the field) - points scored by opposing team (while player is on the field)
+
+The +/- score is used to track a player's overall effectiveness on the field and their impact on the game. A positive +/- score means the player's team scored more than the opposing team while the player was on the field, and a negative +/- score means the opposing team scored more while the player was on the field.
 
 -   What are your key explanatory variables?
 
