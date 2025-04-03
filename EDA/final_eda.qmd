@@ -1,12 +1,14 @@
 ---
 title: "Final EDA"
 author: "Julia Vitale, Mia Zottoli, and Vishnu Lakshman"
-format: html
+format: pdf
 editor: visual
 ---
 
 ```{r}
-library("here")
+library(here)
+library(tidyverse)
+library(ggplot2)
 ```
 
 ```{r}
@@ -73,3 +75,45 @@ You must add a *codebook* -- a description of all variables you are using, inclu
 ## Data Visualization
 
 You must include at least 4 visualizations of your data made in R. You must include your outcome variable in at least two plots and your key explanatory variable in at least two of these plots. You must use visualizations that are *appropriate* for the data type (categorical vs numeric, continuous vs discrete) of your outcome and explanatory variables. For example, you should not use a histogram to plot a categorical variable.
+
+```{r}
+ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+```
+
+```{r}
+ultimate_data %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Points per game", y = "Plus/Minus", color = "Division") + 
+  theme_minimal() +
+  scale_color_viridis_d()
+
+ultimate_data %>% ggplot(aes(x = ds_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F)+
+  theme_minimal() + scale_x_log10() + 
+  labs(x = "Ds per game", y = "Plus/Minus", color = "Division") +
+  scale_color_viridis_d()
+
+ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  scale_color_viridis_d()
+```
