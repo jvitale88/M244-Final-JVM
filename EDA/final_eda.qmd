@@ -10,7 +10,28 @@ library("here")
 ```
 
 ```{r}
-ultimate_data <- read_csv(here("data", "ultimate_college_championship.csv"))
+ultimate_data <- read_csv(here("data", "ultimate_college_championship.csv")) %>%
+  mutate(across(c(level, gender, division, team_name), as.factor)) %>%
+  mutate(school = str_split_i(team_name, " ", 1)) %>%
+  mutate(school = ifelse(str_detect(team_name, "St Olaf"), "St Olaf", school)) %>%
+  mutate(school = ifelse(str_detect(team_name, "North Carolina"), "North Carolina", school)) %>%
+  mutate(school = ifelse(str_detect(team_name, "Cal Poly"), "Cal Poly SLO", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "British Columbia"), "British Columbia", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Western Washington"), "Western Washington", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Penn State"), "Penn State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "San Diego"), "UCSD", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Lewis"), "Lewis & Clark", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Colorado State"), "Colorado State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Oklahoma Christian"), "Oklahoma Christian", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Binghamton"), "SUNY Binghamton", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Santa Bar"), "UCSB", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Santa Cr"), "USCS", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Colorado College"), "Colorado College", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Missouri S"), "Missouri S&T", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Holyoke"), "Mount Holyoke", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "NC State"), "NC State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Oregon State"), "Oregon State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Washington University"), "Washington University", school))
 ```
 
 ## Exploring the Data
@@ -19,15 +40,22 @@ Answer the following questions:
 
 -   What is your outcome variable(s)? How well does it measure the outcome you are interested? How does it relate to your expectations?
 
-Our outcome variable is plus_minus, which is the difference between the amount of points scored by an individual player's team while that player is on the field and the amount of points scored by the opposing team while that player is on the field.
+*Our outcome variable is plus_minus, which is the difference between the amount of points scored by an individual player's team while that player is on the field and the amount of points scored by the opposing team while that player is on the field. We are interested in the influence of an individual player on the success of the whole team, so this variable is a good measure of our outcome of interest.*
 
-Essentially, +/- for a select player = points scored by player's team (while player is on the field) - points scored by opposing team (while player is on the field)
+*Essentially, +/- for a select player = points scored by player's team (while player is on the field) - points scored by opposing team (while player is on the field)*
 
-The +/- score is used to track a player's overall effectiveness on the field and their impact on the game. A positive +/- score means the player's team scored more than the opposing team while the player was on the field, and a negative +/- score means the opposing team scored more while the player was on the field.
+*The +/- score is used to track a player's overall effectiveness on the field and their impact on the game. A positive +/- score means the player's team scored more than the opposing team while the player was on the field, and a negative +/- score means the opposing team scored more while the player was on the field.*
 
 -   What are your key explanatory variables?
 
+    *Turns (turnovers) per game, points scored per game, Ds (defensive interceptions) per game, level (Division 1 or 3), division (Men's or Women's) and school.*
+
 In addition, create a table of summary statistics for the variables you are planning to use.
+
+```{r}
+ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
+
+```
 
 ## Data Wrangling and Transformation
 
