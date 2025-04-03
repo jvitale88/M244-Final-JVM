@@ -1,6 +1,6 @@
 ---
 title: "Julia EDA"
-format: pdf
+format: html
 editor: visual
 execute:
   warnings: false
@@ -14,10 +14,34 @@ library(tidyverse)
 library(here)
 library(ggplot2)
 library(cowplot)
+library(gtsummary)
+library(xfun)
 #read in data
 df <- read.csv(here('data', 'ultimate_college_championship.csv')) %>%
-  mutate(across(c(level, gender, division, team_name), as.factor))
+  mutate(across(c(level, gender, division, team_name), as.factor)) %>%
+  mutate(school = str_split_i(team_name, " ", 1)) %>%
+  mutate(school = ifelse(str_detect(team_name, "St Olaf"), "St Olaf", school)) %>%
+  mutate(school = ifelse(str_detect(team_name, "North Carolina"), "North Carolina", school)) %>%
+  mutate(school = ifelse(str_detect(team_name, "Cal Poly"), "Cal Poly SLO", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "British Columbia"), "British Columbia", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Western Washington"), "Western Washington", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Penn State"), "Penn State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "San Diego"), "UCSD", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Lewis"), "Lewis & Clark", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Colorado State"), "Colorado State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Oklahoma Christian"), "Oklahoma Christian", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Binghamton"), "SUNY Binghamton", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Santa Bar"), "UCSB", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Santa Cr"), "USCS", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Colorado College"), "Colorado College", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Missouri S"), "Missouri S&T", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Holyoke"), "Mount Holyoke", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "NC State"), "NC State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Oregon State"), "Oregon State", school))  %>%
+  mutate(school = ifelse(str_detect(team_name, "Washington University"), "Washington University", school))
 
+
+df %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
 ```
 Explore data
 ```{r}
@@ -29,14 +53,113 @@ df %>% ggplot(aes(x = level, fill = gender)) +
   theme_cowplot()
 ```
 ```{r}
-str(df)
-df %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = gender)) + 
-   geom_point() + geom_smooth(method = 'lm', se = F)
-?geom_smooth
+df %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Points per game", y = "Plus/Minus", color = "Division") + 
+  theme_cowplot() +
+  scale_color_viridis_d()
 
+df %>% ggplot(aes(x = ds_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F)+
+  theme_cowplot() + scale_x_log10() + 
+  labs(x = "Ds per game", y = "Plus/Minus", color = "Division") +
+  scale_color_viridis_d()
+
+df %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_cowplot() +
+  scale_color_viridis_d()
+```
+```{r}
+df %>% ggplot(aes(x = division, y = plus_minus, fill = division)) + 
+   geom_boxplot() + scale_y_log10()
+
+df %>% ggplot(aes(x = division, y = pts_per_game, fill = division)) + 
+   geom_boxplot() + scale_y_log10()
+```
+
+```{r}
+library(corrr)
+library(ggcorrplot)
+library(FactoMineR)
+library(factoextra)
+str(df)
+df1 <- df %>% select(c(
+  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game
+))
+
+pca <- (princomp(df1))
+
+fviz_pca_var(pca, col.var = "cos2",
+            gradient.cols = c("black", "orange", "green"),
+            repel = TRUE)
+
+library(ggfortify)
+pca_df <- prcomp(df1, scale. = TRUE)
+autoplot(pca_df, data = df, color = "school", 
+         loadings = TRUE, loadings.label = TRUE)
+
+library(cluster)
+autoplot(pam(df1[-5], 3), frame = TRUE)
 
 ```
 
+```{r}
+df %>% ggplot(aes(x = Points, fill = division)) + 
+  geom_histogram()  + 
+  facet_wrap(vars(division)) +
+  theme_minimal() +
+  xlim(0,20) +
+  ylim(0,100)
+  
+df %>% ggplot(aes(x = Ds, fill = division)) + 
+  geom_histogram() + 
+  facet_wrap(vars(division)) +
+  xlim(0,20) +
+  ylim(0, 140)
 
+df %>% ggplot(aes(x = Turns, fill = division)) + 
+  geom_histogram() + 
+  facet_wrap(vars(division)) +
+  xlim(0,30) +
+  ylim(0, 70)
+df %>% ggplot(aes(x = plus_minus, fill = division)) + 
+  geom_histogram() + 
+  facet_wrap(vars(division)) +
+  xlim(-20,20)
 
+df %>% ggplot(aes(x = plus_minus, color = division, fill = division)) + 
+  geom_density(alpha = 0.1,linewidth = 1, adjust = 2) +
+  xlim(-25, 25) +
+  theme_minimal()
+
+df %>% ggplot(aes(x = ds_per_game, color = division, fill = division)) + 
+  geom_density(alpha = 0.1,linewidth = 1, adjust = 2) +
+  theme_minimal() +
+  xlim(0,3)
+
+df %>% ggplot(aes(x = pts_per_game, color = division, fill = division)) + 
+  geom_density(alpha = 0.1,linewidth = 1, adjust = 1) +
+  theme_minimal() +
+  xlim(0,3)
+
+df %>% ggplot(aes(x = turns_per_game, color = division, fill = division)) + 
+  geom_density(alpha = 0.1,linewidth = 1, adjust = 1) +
+  theme_minimal() +
+  xlim(0,3)
+
+```
+
+```{r}
+d1m <- df %>% filter(division == "Division 1 Men")
+d1w <- df %>% filter(division == "Division 1 Women")
+d3m <- df %>% filter(division == "Division 3 Men")
+d3w <- df %>% filter(division == "Division 3 Women")
+
+df %>% ggplot(aes(x = pts_per_game, y = plus_minus)) + 
+  geom_point() + theme_minimal() + facet_wrap(vars(division)) + 
+  labs(x = "Points per game", y = "Plus/Minus", color = "School", 
+       title = "Points per gae vs plus/minus")
+
+```
 
