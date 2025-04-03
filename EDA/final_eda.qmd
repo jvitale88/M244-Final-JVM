@@ -88,7 +88,7 @@ Answer the following question:
 
 -   Did you have to create any new variables from existing variables? If so, how and why?
 
-    -   **We created a 'school name' variable which extracts the name of the college/university associated with the team name. Some schools have both men's and women's teams in this data set, and we are curious if school advantage transcends team-specific advantage.**
+    -   **We created a 'school' variable which extracts the name of the college/university associated with the team name. Some schools have both men's and women's teams in this data set, and we are curious if school advantage transcends team-specific advantage.**
 
 ## Codebook
 
