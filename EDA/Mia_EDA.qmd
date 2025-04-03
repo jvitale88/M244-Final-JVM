@@ -100,3 +100,8 @@ ggplot(men_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
 unique_team_names <- unique(og_ultimate_data$team_name)
 unique_team_names
 ```
+
+```{r}
+unique_schools <- unique(ultimate_data$school)
+unique_schools
+```
