@@ -3,10 +3,10 @@ title: "Final Project Exploratory Data Analysis"
 author: "Julia Vitale, Mia Zottoli, and Vishnu Lakshman"
 format: pdf
 editor: visual
-execute:
-  warnings: false
-  messages: false
-  errors: true
+execute: 
+  error: true
+  message: false
+  warning: false
 ---
 
 ```{r}
