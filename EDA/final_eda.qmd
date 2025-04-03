@@ -1,14 +1,25 @@
 ---
-title: "Final EDA"
+title: "Final Project Exploratory Data Analysis"
 author: "Julia Vitale, Mia Zottoli, and Vishnu Lakshman"
 format: pdf
 editor: visual
+execute:
+  warnings: false
+  messages: false
+  errors: true
 ---
 
 ```{r}
 library(here)
 library(tidyverse)
 library(ggplot2)
+library(corrr)
+library(ggcorrplot)
+library(FactoMineR)
+library(factoextra)
+library(ggfortify)
+library(cluster)
+
 ```
 
 ```{r}
@@ -64,9 +75,20 @@ ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
 Answer the following question:
 
 -   What data cleaning did you have to do?
+
+    -   **The data was already pretty clean. We had to do some string manipulation to extract the school name from the team name, and had to convert some character variables to factors.**
+
 -   How did you wrangle the data?
+
+    -   **We did not have to do significant data wrangling for this data set. If we choose an analysis method that requires standardization, we will have to standardize the numeric variables.**
+
 -   Are you deciding to exclude any observations? If so, why?
+
+    -   **No, we are not excluding any observations. There are no extreme outliers.**
+
 -   Did you have to create any new variables from existing variables? If so, how and why?
+
+    -   **We created a 'school name' variable which extracts the name of the college/university associated with the team name. Some schools have both men's and women's teams in this data set, and we are curious if school advantage transcends team-specific advantage.**
 
 ## Codebook
 
@@ -116,4 +138,15 @@ ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = divisio
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
   labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
   scale_color_viridis_d()
+```
+
+```{r}
+df1 <- ultimate_data %>% select(c(
+  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game
+))
+
+pca <- (princomp(df1))
+
+autoplot(pam(df1[-4], 3), frame = TRUE) + theme_minimal() +
+  labs(frame = "Cluster", title = "Principal component analysis of Ultimate data")
 ```
