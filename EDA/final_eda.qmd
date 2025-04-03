@@ -61,7 +61,7 @@ Answer the following questions:
 
 -   What are your key explanatory variables?
 
-    *Turns (turnovers) per game, points scored per game, Ds (defensive interceptions) per game, level (Division 1 or 3), division (Men's or Women's) and school.*
+    *Turns (turnovers) thrown per game, points scored per game, Ds (defensive interceptions) per game, assists per game, level (Division 1 or 3), division (Men's or Women's) and school.*
 
 In addition, create a table of summary statistics for the variables you are planning to use.
 
@@ -138,11 +138,16 @@ ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = divisio
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
   labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
   scale_color_viridis_d()
+
+ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Assists per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  scale_color_viridis_d()
 ```
 
 ```{r}
 df1 <- ultimate_data %>% select(c(
-  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game
+  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game, ast_per_game
 ))
 
 pca <- (princomp(df1))
