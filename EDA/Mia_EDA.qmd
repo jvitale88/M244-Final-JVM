@@ -11,6 +11,10 @@ library(ggplot2)
 ```
 
 ```{r}
+og_ultimate_data <- read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ultimate_college_championship.csv")
+```
+
+```{r}
 ultimate_data <- read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ultimate_college_championship.csv") %>%
   mutate(across(c(level, gender, division, team_name), as.factor)) %>%
   mutate(school = str_split_i(team_name, " ", 1)) %>%
@@ -90,4 +94,9 @@ ggplot(men_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
   ) +
   scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
   theme_minimal()
+```
+
+```{r}
+unique_team_names <- unique(og_ultimate_data$team_name)
+unique_team_names
 ```
