@@ -1,15 +1,18 @@
 ---
 title: "Final Project Exploratory Data Analysis"
 author: "Julia Vitale, Mia Zottoli, and Vishnu Lakshman"
-format: pdf
+format: html
 editor: visual
 execute: 
   error: true
   message: false
   warning: false
+embed-resources: true
 ---
 
-```{r}
+```{r load-libraries}
+
+# Load necessary libraries
 library(here)
 library(tidyverse)
 library(ggplot2)
@@ -19,11 +22,13 @@ library(FactoMineR)
 library(factoextra)
 library(ggfortify)
 library(cluster)
-
 ```
 
-```{r}
+```{r data-transformation}
+
+# Load dataset
 ultimate_data <- read_csv(here("data", "ultimate_college_championship.csv")) %>%
+# Standardise school names
   mutate(across(c(level, gender, division, team_name), as.factor)) %>%
   mutate(school = str_split_i(team_name, " ", 1)) %>%
   mutate(school = ifelse(str_detect(team_name, "St Olaf"), "St Olaf", school)) %>%
@@ -65,9 +70,10 @@ Answer the following questions:
 
 In addition, create a table of summary statistics for the variables you are planning to use.
 
-```{r}
-ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
+```{r variable-summary}
 
+# A table of summarizing statistics of the variables we are planning to use 
+ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
 ```
 
 ## Data Wrangling and Transformation
@@ -92,13 +98,17 @@ Answer the following question:
 
 ## Codebook
 
+We have created a codebook in the README.md page in our repo on GitHub which contains a description of all the variables we are using.
+
 You must add a *codebook* -- a description of all variables you are using, including ones you are creating for this project -- to the README.md page of the `data/` folder of your repo.
 
 ## Data Visualization
 
-You must include at least 4 visualizations of your data made in R. You must include your outcome variable in at least two plots and your key explanatory variable in at least two of these plots. You must use visualizations that are *appropriate* for the data type (categorical vs numeric, continuous vs discrete) of your outcome and explanatory variables. For example, you should not use a histogram to plot a categorical variable.
+We have 11 data visualizations of our data made in R. Our outcome variable, which is `plus_minus`, is used in multiple visualizations. There are visualizations involving various different data types (categorical, numerical, continuous and discrete).
 
-```{r}
+```{r gender-&-plus-minus}
+
+# Plot player's plus-minus scores and their gender
 ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = gender)) +
   geom_boxplot() +
   labs(
@@ -107,9 +117,37 @@ ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = gender)) +
     y = "Player's +/- Score"
   ) +
   theme_minimal()
+
+# Filter table to create a new table called d3 that only contains d3 level players
+d3 <- ultimate_data[ultimate_data$level == "Division 3",]
+
+# Plot  Division 3 level player's plus-minus scores and their gender
+ggplot(d3, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Division 3 Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+
+# Filter table to create a new table called d1 that only contains d3 level players
+d1 <- ultimate_data[ultimate_data$level == "Division 1",]
+
+# Plot  Division 1 level player's plus-minus scores and their gender
+ggplot(d1, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Division 1 Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
 ```
 
-```{r}
+```{r division-level-&-plus-minus}
+
+# Plot player's plus-minus score against the divisional level they are playing in
 ggplot(ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
   geom_violin(trim = FALSE) +
   labs(
@@ -119,39 +157,78 @@ ggplot(ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
   ) +
   scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
   theme_minimal()
+
+# Filter table to create a new table called women_ultimate_data that only contains female players
+women_ultimate_data <- ultimate_data %>%
+  filter(gender == "Women")
+
+# Plot female player's plus-minus score against the divisional level they are playing in
+ggplot(women_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3 Women",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+
+# Filter table to create a new table called men_ultimate_data that only contains male players
+men_ultimate_data <- ultimate_data %>%
+  filter(gender == "Men")
+
+# Plot male player's plus-minus score against the divisional level they are playing in
+ggplot(men_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3 Men",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
 ```
 
-```{r}
+```{r plus-minus-&-other-variable}
+
+# Plot a player's plus-minus score and their points per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
   labs(x = "Points per game", y = "Plus/Minus", color = "Division") + 
   theme_minimal() +
   scale_color_viridis_d()
 
+# Plot a player's plus-minus score and their D's per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = ds_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F)+
   theme_minimal() + scale_x_log10() + 
   labs(x = "Ds per game", y = "Plus/Minus", color = "Division") +
   scale_color_viridis_d()
 
+# Plot a player's plus-minus score and their turns per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
   labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
   scale_color_viridis_d()
 
+# Plot a player's plus-minus score and their assists per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
   labs(x = "Assists per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
   scale_color_viridis_d()
 ```
 
-```{r}
+```{r PCA}
+
+# Create a dataset df1 by selecting the following the columns below
 df1 <- ultimate_data %>% select(c(
   turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game, ast_per_game
 ))
 
+# Perform principle component analysis on df1 
 pca <- (princomp(df1))
 
+# Plots the three clusters
 autoplot(pam(df1[-4], 3), frame = TRUE) + theme_minimal() +
   labs(frame = "Cluster", title = "Principal component analysis of Ultimate data")
 ```
