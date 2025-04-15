@@ -7,3 +7,169 @@ editor: visual
 
 ## Quarto
 
+Preliminary Analysis due **Thursday, April 17, 2025**
+
+Peer Review of Preliminary Analysis due **Thursday, April 24, 2025**
+
+Project presentations due **Thursday, May 1st and Tuesday, May 6th**
+
+Final report due **Tuesday, May 13, 2025**
+
+Peer and Self Evaluation due **Tuesday, May 13, 2025**
+
+# Introduction
+
+The goal of this project is to demonstrate proficiency in data science 
+techniques by conducting a novel analysis of a dataset of your own choosing
+or creation. The dataset may already exist, or you may collect your own data 
+by scraping the web. You will also get practice presenting 
+your results.
+
+Your project can be inferential in nature or can be focused more on prediction.
+Your project can involve regression or classification (or elements of both,
+but don't spread yourself too thin).
+
+# Brief Project Logistics
+
+The final project will be done in pairs of your choice.
+
+The seven deliverables for the final project are (with associated percentage of 
+the overall project grade):
+
+1. A project proposal describing two datasets of interest (5%)
+2. Exploratory Data Analysis (7.5%)
+3. A preliminary analysis using Quarto (rough draft of the report)
+    - Peer Review (15%) 
+4. Reproducible slides using Quarto + presentation (30%)
+5. A written, reproducible report using Quarto detailing your analysis (30%) 
+6. Evaluation of your own and team members efforts on project  (2.5%)
+7. Your GitHub repo for the project (10%)
+
+
+## Preliminary Analysis
+
+Your preliminary analysis must be written using Quarto. All team members must contribute to the code and writing for this project; it is not acceptable for one team member to write all of the code and analysis. In the preliminary analysis, you must **show your code**. You can do your analysis and data wrangling in R or Python (or a mix of both).
+
+Your preliminary analysis is a *rough draft* of the written report. You will get feedback from another group on your written report (see the next section for more information on this).
+
+### Content
+
+The mandatory components of the preliminary analysis are as follows, but feel free to expand with additional sections as necessary.
+
+#### Introduction and Data
+
+The introduction provides motivation and context for your research. Describe your topic (citing sources) and provide a concise, clear statement of your research question and expectations.
+
+Then identify the source of the data, when and how it was collected, the cases, a general description of relevant variables. You should describe any data wrangling that you have done, any variables you have changed from the original data set, the data tidying you had to do, and what variables you plan to include in any models you will do, and why.
+
+#### Methodology
+
+The methodology section should include visualizations and summary statistics relevant to your research question. You should also justify the choice of method(s) used to answer your research question.
+
+#### Results
+
+Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
+
+**Provide only the main results from your analysis.** The goal is not to do an exhaustive data analysis (calculate every possible statistic and perform every possible procedure for all variables). Rather, you should demonstrate that you are proficient at asking meaningful questions and answering them using data, that you are skilled in interpreting and presenting results, and that you can accomplish these tasks using R and Python. More is not always better.
+
+#### Discussion
+
+This section is a conclusion and discussion. This will require a summary of what you have learned about your research question along with statistical and methodological arguments supporting your conclusions. You should critique your own methods and provide suggestions for improving your analysis and future work.
+
+You should also discuss issues pertaining to the reliability and validity of your data and the appropriateness of the analyses should also be discussed. You must include at least one paragraph discussing in what ways the training data you used limits any inferential conclusions or predictions for new data you can make.
+
+Finally, discuss whether there may be any ethical concerns with your project. What are the benefits and risks associated with it?
+
+### Formatting
+
+All parts of your project should be professionally formatted. For example, this means labeling plots and figures and turning off code chunks.
+
+**You must comment your code!**
+
+**You must suppress all warnings and messages.**
+
+**You should label your code chunks.**
+
+Style and format does count for this assignment, so please take the time to make sure everything looks good and your data and code are properly formatted.
+
+**For the preliminary analysis, do not suppress code.**
+
+### Grading
+
+Submit your preliminary analysis to Gradescope by **Thursday, April 17, 2025 by 11:59 PM**.
+
+The preliminary analysis will be graded for completion. Each group will be assigned to another group. You will then evaluate each others preliminary analyses and provide feedback. See the next section for more details.
+
+## Peer Review
+
+Critically reviewing others’ work is a crucial part of the data scientific process, and this class is no exception. You will all be given read access to another project repo and have until lab time to provide a detailed critique of the preliminary analysis and data analysis. This review is intended to help you create a high quality final project, as well as give you experience reading and constructively critiquing the work of others.
+
+Groups will be paired by me.
+
+### Before Working on the Review
+
+Before working on the review, carefully read the guidelines for the preliminary analysis/written report.
+
+Think about the below questions as you read over what the other group exchanged with you. You do not have to answer all of these questions and your feedback might depend upon what the other group requests.
+
+### Content
+
+#### Introduction and Data
+
+-   Is the research question and goal of the report clearly stated?
+-   Does the introduction provide appropriate background context and motivation for a general reader?
+-   Is the source of the data stated with an appropriate citation?
+-   Is it clear when and how the data was collected?
+-   Is data manipulation described clearly (missing data, creation of new variables, etc)?
+-   Are the cases and relevant variables described?
+
+#### Methodology
+
+-   Do the visualizations correspond to the stated research question?
+-   Are visualizations effective and do they follow clear visualization principles (including elements like titles, labels, appropriate for the type of data, etc)?
+-   Is the choice of method/approach justified?
+
+#### Results
+
+-   Are the chosen techniques for answering the research question appropriate for the research context and type of data?
+-   Is the research question answered effectively?
+
+#### Discussion
+
+-   Is the answer to the research question summarized and supported by evidence?
+-   Are limitations of the analysis clearly outlined?
+-   Do the authors reflect on any implications the nature of the training data has for the generalizability of the findings?
+-   Do the authors reflect on the ethicality of their work?
+
+#### Formatting
+
+-   Is their code commented?
+-   Are their code chunks labeled?
+
+#### General
+
+-   Is the writing clear (including elements like spelling, grammar, etc)? Are you able to follow what is being done?
+-   Is the coding clear? Are you able to follow precisely what is being done?
+-   Are you able to reproduce all aspects of the report, including output, visualizations, etc?
+-   Is the report well-formatted and readable (including layout but also only reporting relevant output, with no extraneous code, visuals, etc)?
+-   Have they appropriate outlined the next steps with gaps clearly defined?
+-   Is their repository well-organized or has it been difficult to find certain files?
+-   Any suggestions for them moving forward?
+
+#### Final Considerations
+
+-   What is one question you have for the group after reading their analysis?
+-   What is one thing the group has done especially well?
+
+You have until **Thursday, April 27, 2025** to provide your comments to the group (with me included) in slack. 
+
+### Grading
+
+You will be graded on the effort of your peer review. Your feedback should not be superficial; your goal should be to help your partner group really improve their project. All group members should contribute to the peer review feedback document.
+
+| Total                         | 15 pts  |
+|-------------------------------|---------|
+| **Breadth of comments**       | 6.5 pts |
+| **Depth of comments**         | 6.5 pts |
+| **Workflow and Organization** | 2 pts   |
+
