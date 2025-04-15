@@ -5,58 +5,21 @@ author: "Vishnu, Mia, and Julia"
 editor: visual
 ---
 
-## Quarto
-
-Preliminary Analysis due **Thursday, April 17, 2025**
-
-Peer Review of Preliminary Analysis due **Thursday, April 24, 2025**
-
-Project presentations due **Thursday, May 1st and Tuesday, May 6th**
-
-Final report due **Tuesday, May 13, 2025**
-
-Peer and Self Evaluation due **Tuesday, May 13, 2025**
-
-# Introduction
-
-The goal of this project is to demonstrate proficiency in data science techniques by conducting a novel analysis of a dataset of your own choosing or creation. The dataset may already exist, or you may collect your own data by scraping the web. You will also get practice presenting your results.
-
-Your project can be inferential in nature or can be focused more on prediction. Your project can involve regression or classification (or elements of both, but don't spread yourself too thin).
-
-# Brief Project Logistics
-
-The final project will be done in pairs of your choice.
-
-The seven deliverables for the final project are (with associated percentage of the overall project grade):
-
-1.  A project proposal describing two datasets of interest (5%)
-2.  Exploratory Data Analysis (7.5%)
-3.  A preliminary analysis using Quarto (rough draft of the report)
-    -   Peer Review (15%)
-4.  Reproducible slides using Quarto + presentation (30%)
-5.  A written, reproducible report using Quarto detailing your analysis (30%)
-6.  Evaluation of your own and team members efforts on project (2.5%)
-7.  Your GitHub repo for the project (10%)
-
-## Preliminary Analysis
-
-Your preliminary analysis must be written using Quarto. All team members must contribute to the code and writing for this project; it is not acceptable for one team member to write all of the code and analysis. In the preliminary analysis, you must **show your code**. You can do your analysis and data wrangling in R or Python (or a mix of both).
-
-Your preliminary analysis is a *rough draft* of the written report. You will get feedback from another group on your written report (see the next section for more information on this).
-
-### Content
-
-The mandatory components of the preliminary analysis are as follows, but feel free to expand with additional sections as necessary.
-
 #### Introduction and Data
 
 The data set includes statistics from the 2024 Division 1 and 3 Men’s and Women’s Ultimate Frisbee Championships. The statistics were found on USA Ultimate, the non-profit organization serving as the governing body for ultimate in the United States, and were taken from a data visualization titled “USA Ultimate 2024 Nationals Stats Dashboard”, which was created by Ben Ayres. The data set includes 1665 rows which each correspond to an individual player, and it includes 15 variables which categorize the players by Division, Gender, and Team, and provide game statistics for each player. 
 
-Research question:  Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. The data set has 15 variables and over 1500 observations. While we do not have a concrete hypothesis in mind yet, the project would include a prediction aspect where we train the model under supervised conditions to be able to predict variables like a player’s plus/minus score (AKA individual impact) based on other variables such as scores, assists and defensive plays. Such a model would be applicable to our teams at Vassar as we could test it in my currently developing AI model that can collect individual and team statistics to see if it can identify the most impactful player. Other comparisons that would be interesting to explore are between the men’s and women’s divisions and the division 1 and division 3 level.
+Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. We will also stratify by division and gender.
 
 The introduction provides motivation and context for your research. Describe your topic (citing sources) and provide a concise, clear statement of your research question and expectations.
 
 Then identify the source of the data, when and how it was collected, the cases, a general description of relevant variables. You should describe any data wrangling that you have done, any variables you have changed from the original data set, the data tidying you had to do, and what variables you plan to include in any models you will do, and why.
+
+```{r}
+library(tidyverse)
+
+ultimate_data <- read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ulti_clean.csv")
+```
 
 #### Methodology
 
