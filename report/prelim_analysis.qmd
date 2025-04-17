@@ -13,6 +13,7 @@ library(psych)
 library(cluster)
 library(factoextra)
 library(dplyr)
+library(reticulate)
 ```
 
 #### Introduction and Data
