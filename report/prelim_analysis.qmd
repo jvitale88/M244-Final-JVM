@@ -5,64 +5,484 @@ author: "Vishnu, Mia, and Julia"
 editor: visual
 ---
 
-## Quarto
+```{r}
+library(tidyverse)
+library(gtsummary)
+library(ggplot2)
+library(psych)
+library(cluster)
+library(factoextra)
+library(dplyr)
+library(reticulate)
+library(here)
+```
 
-Preliminary Analysis due **Thursday, April 17, 2025**
-
-Peer Review of Preliminary Analysis due **Thursday, April 24, 2025**
-
-Project presentations due **Thursday, May 1st and Tuesday, May 6th**
-
-Final report due **Tuesday, May 13, 2025**
-
-Peer and Self Evaluation due **Tuesday, May 13, 2025**
-
-# Introduction
-
-The goal of this project is to demonstrate proficiency in data science techniques by conducting a novel analysis of a dataset of your own choosing or creation. The dataset may already exist, or you may collect your own data by scraping the web. You will also get practice presenting your results.
-
-Your project can be inferential in nature or can be focused more on prediction. Your project can involve regression or classification (or elements of both, but don't spread yourself too thin).
-
-# Brief Project Logistics
-
-The final project will be done in pairs of your choice.
-
-The seven deliverables for the final project are (with associated percentage of the overall project grade):
-
-1.  A project proposal describing two datasets of interest (5%)
-2.  Exploratory Data Analysis (7.5%)
-3.  A preliminary analysis using Quarto (rough draft of the report)
-    -   Peer Review (15%)
-4.  Reproducible slides using Quarto + presentation (30%)
-5.  A written, reproducible report using Quarto detailing your analysis (30%)
-6.  Evaluation of your own and team members efforts on project (2.5%)
-7.  Your GitHub repo for the project (10%)
-
-## Preliminary Analysis
-
-Your preliminary analysis must be written using Quarto. All team members must contribute to the code and writing for this project; it is not acceptable for one team member to write all of the code and analysis. In the preliminary analysis, you must **show your code**. You can do your analysis and data wrangling in R or Python (or a mix of both).
-
-Your preliminary analysis is a *rough draft* of the written report. You will get feedback from another group on your written report (see the next section for more information on this).
-
-### Content
-
-The mandatory components of the preliminary analysis are as follows, but feel free to expand with additional sections as necessary.
-
-#### Introduction and Data
+# Introduction and Data
 
 The data set includes statistics from the 2024 Division 1 and 3 Men’s and Women’s Ultimate Frisbee Championships. The statistics were found on USA Ultimate, the non-profit organization serving as the governing body for ultimate in the United States, and were taken from a data visualization titled “USA Ultimate 2024 Nationals Stats Dashboard”, which was created by Ben Ayres. The data set includes 1665 rows which each correspond to an individual player, and it includes 15 variables which categorize the players by Division, Gender, and Team, and provide game statistics for each player. 
 
-Research question:  Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. The data set has 15 variables and over 1500 observations. While we do not have a concrete hypothesis in mind yet, the project would include a prediction aspect where we train the model under supervised conditions to be able to predict variables like a player’s plus/minus score (AKA individual impact) based on other variables such as scores, assists and defensive plays. Such a model would be applicable to our teams at Vassar as we could test it in my currently developing AI model that can collect individual and team statistics to see if it can identify the most impactful player. Other comparisons that would be interesting to explore are between the men’s and women’s divisions and the division 1 and division 3 level.
+Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. These variables all relate to a player's effectiveness on the field, which is why we will use them to predict pls_mns_per_game. We will also stratify by division and gender, so that we ensure that we have an accurate model for each group. We will have four models in the final product, DI Men, DI Women, DIII Men, and DIII Women.
 
-The introduction provides motivation and context for your research. Describe your topic (citing sources) and provide a concise, clear statement of your research question and expectations.
+Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
-Then identify the source of the data, when and how it was collected, the cases, a general description of relevant variables. You should describe any data wrangling that you have done, any variables you have changed from the original data set, the data tidying you had to do, and what variables you plan to include in any models you will do, and why.
+```{r}
+ultimate_data <- read_csv(here('data', 'ulti_clean.csv'))
+```
 
-#### Methodology
+# Methodology
 
-The methodology section should include visualizations and summary statistics relevant to your research question. You should also justify the choice of method(s) used to answer your research question.
+### *Summary Statistics*
 
-#### Results
+```{r}
+ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
+```
+
+```{r}
+summary_data <- ultimate_data[, c("pls_mns_per_game", "turns_per_game", "ds_per_game", "ast_per_game", "pts_per_game")]
+
+summary(summary_data)
+```
+
+```{r}
+describe(summary_data)
+```
+
+```{r}
+cor(summary_data, use = "complete.obs")
+```
+
+```{r}
+pairs(summary_data, main = "Pairwise Plots of Ultimate Stats")
+```
+
+### *Visualizations/EDA*
+
+```{r gender-&-plus-minus}
+# Plot player's plus-minus scores and their gender
+ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+
+# Filter table to create a new table called d3 that only contains d3 level players
+d3 <- ultimate_data[ultimate_data$level == "Division 3",]
+
+# Plot  Division 3 level player's plus-minus scores and their gender
+ggplot(d3, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Division 3 Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+
+# Filter table to create a new table called d1 that only contains d3 level players
+d1 <- ultimate_data[ultimate_data$level == "Division 1",]
+
+# Plot  Division 1 level player's plus-minus scores and their gender
+ggplot(d1, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Division 1 Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+```
+
+```{r division-level-&-plus-minus}
+# Plot player's plus-minus score against the divisional level they are playing in
+ggplot(ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+
+# Filter table to create a new table called women_ultimate_data that only contains female players
+women_ultimate_data <- ultimate_data %>%
+  filter(gender == "Women")
+
+# Plot female player's plus-minus score against the divisional level they are playing in
+ggplot(women_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3 Women",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+
+# Filter table to create a new table called men_ultimate_data that only contains male players
+men_ultimate_data <- ultimate_data %>%
+  filter(gender == "Men")
+
+# Plot male player's plus-minus score against the divisional level they are playing in
+ggplot(men_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3 Men",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+```
+
+```{r plus-minus-&-other-variable}
+
+# Plot a player's plus-minus score and their points per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Points per game", y = "Plus/Minus", color = "Division") + 
+  theme_minimal() +
+  scale_color_viridis_d()
+
+# Plot a player's plus-minus score and their D's per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = ds_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F)+
+  theme_minimal() + scale_x_log10() + 
+  labs(x = "Ds per game", y = "Plus/Minus", color = "Division") +
+  scale_color_viridis_d()
+
+# Plot a player's plus-minus score and their turns per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  scale_color_viridis_d()
+
+# Plot a player's plus-minus score and their assists per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Assists per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  scale_color_viridis_d()
+```
+
+```{r PCA}
+
+# Create a dataset df1 by selecting the following the columns below
+df1 <- ultimate_data %>% select(c(
+  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game, ast_per_game
+))
+
+# Perform principle component analysis on df1 
+pam_res <- pam(df1[-4], 3)
+
+# Plots the three clusters
+fviz_cluster(pam_res, data = df1[-4],
+             geom = "point",
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal()) +
+  labs(title = "Principal Component Analysis of Ultimate Data")
+```
+
+We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. Additionally, although the EDA for a player's +/- score seems similar for division and gender, there are slight differences; therefore, we will fit the model for each combination of division and gender.
+
+# Results
+
+```{python}
+ultimate_data = r.ultimate_data
+
+import pandas as pd
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
+
+### *Linear Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+
+def linear_reg(ultimate_data, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+    
+results_linear = linear_reg(ultimate_data)
+
+
+print("R² Score:", results_linear['score (R^2)'])
+print("Coefficients:", results_linear['coefficients'])
+print("Intercept:", results_linear['intercept'])
+```
+
+#### Function to Fit Model by Division and Gender
+
+```{python}
+def linear_by_div_gender(ultimate_data, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results_linear = {}
+
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < 5:
+            continue
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=test_size, random_state=random_state
+        )
+
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+
+        results_linear[(division, gender)] = {
+            'model': model,
+            'score (R^2)': model.score(X_test, y_test),
+            'coefficients': dict(zip(feature_cols, model.coef_)),
+            'intercept': model.intercept_,
+            'scaler': scaler,
+            'n_samples': len(group_clean)
+        }
+
+    return results_linear
+
+
+resultsdg_linear = linear_by_div_gender(ultimate_data)
+
+for (level, gender), res in resultsdg_linear.items():
+    print(f"{level} {gender} — R²: {res['score (R^2)']:.3f}")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print()
+```
+
+### *Ridge Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    # Train Ridge Regression
+    model = Ridge(alpha=alpha)
+    model.fit(X_train, y_train)
+
+    # Output
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+```
+
+```{python}
+results = ridge_reg(ultimate_data)
+
+print("R² Score:", results['score (R^2)'])
+print("Coefficients:", results['coefficients'])
+print("Intercept:", results['intercept'])
+```
+
+#### Function to Fit Model by Division and Gender
+
+```{python}
+def ridge_by_div_gender(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results = {}
+
+    # Group by actual column values
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < 5:
+            continue  # Skip small groups
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=test_size, random_state=random_state
+        )
+
+        model = Ridge(alpha=alpha)
+        model.fit(X_train, y_train)
+
+        results[(division, gender)] = {
+            'model': model,
+            'score (R^2)': model.score(X_test, y_test),
+            'coefficients': dict(zip(feature_cols, model.coef_)),
+            'intercept': model.intercept_,
+            'scaler': scaler,
+            'n_samples': len(group_clean)
+        }
+
+    return results
+```
+
+```{python}
+resultsdg = ridge_by_div_gender(ultimate_data)
+
+for (level, gender), res in resultsdg.items():
+    print(f"{level} {gender} — R²: {res['score (R^2)']:.3f}")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print()
+```
+
+#### *Plotting Feature Contributions*
+
+```{python}
+def plot_feature_contributions(results):
+  
+    sns.set(style="whitegrid")
+
+    # For each group (level, gender), plot the feature coefficients
+    for (level, gender), res in results.items():
+        coefs = res['coefficients']
+        
+        # Sort features by absolute coefficient values
+        sorted_feats = sorted(coefs.items(), key=lambda x: abs(x[1]), reverse=True)
+        
+        # Prepare data for plotting
+        features = [feat for feat, _ in sorted_feats]
+        coef_values = [coef for _, coef in sorted_feats]
+        
+        # Plot the bar chart
+        plt.figure(figsize=(8, 6))
+        plt.barh(features, coef_values, color="skyblue")
+        plt.xlabel("Coefficient Value")
+        plt.title(f"Feature Contributions: {level} {gender}")
+        plt.tight_layout()
+        plt.show()
+```
+
+```{python}
+plot_feature_contributions(resultsdg)
+```
+
+#### **Prediction Model**
+
+```{python}
+def predict_plus_minus(ultimate_data, level, gender, player_stats, ridge_results, linear_results):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    
+    if (level, gender) not in ridge_results:
+        raise ValueError(f"No Ridge model available for {level} {gender}")
+    if (level, gender) not in linear_results:
+        raise ValueError(f"No Linear model available for {level} {gender}")
+
+    ridge_model = ridge_results[(level, gender)]['model']
+    ridge_scaler = ridge_results[(level, gender)]['scaler']
+
+    linear_model = linear_results[(level, gender)]['model']
+    linear_scaler = linear_results[(level, gender)]['scaler']
+
+    player_df = pd.DataFrame([player_stats], columns=feature_cols)
+
+    ridge_scaled = ridge_scaler.transform(player_df)
+    linear_scaled = linear_scaler.transform(player_df)
+
+    predicted_ridge = ridge_model.predict(ridge_scaled)[0]
+    predicted_linear = linear_model.predict(linear_scaled)[0]
+
+    return {
+        'ridge': predicted_ridge,
+        'linear': predicted_linear
+    }
+
+```
+
+#### *Example Use of Prediction Model - Using Filler D1 Men Stats*
+
+Put monks data here?
+
+```{python}
+player_stats = {
+    'turns_per_game': 2.1,
+    'ds_per_game': 1.8,
+    'ast_per_game': 3.2,
+    'pts_per_game': 5.4}
+
+# Get the results from Ridge regression (run the model first)
+ridge_results = ridge_by_div_gender(ultimate_data)
+linear_results = linear_by_div_gender(ultimate_data)
+
+
+# Predict for Division 1 Men
+predicted_plus_minus_d3_men = predict_plus_minus(ultimate_data, 'Division 1', 'Men', player_stats, ridge_results, linear_results)
+
+print("Predicted +/- score per game (D3 Men):")
+print(f"    Ridge: {predicted_plus_minus_d1_men['ridge']:.2f}")
+print(f"    Linear: {predicted_plus_minus_d1_men['linear']:.2f}")
+```
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
 
@@ -75,96 +495,3 @@ This section is a conclusion and discussion. This will require a summary of what
 You should also discuss issues pertaining to the reliability and validity of your data and the appropriateness of the analyses should also be discussed. You must include at least one paragraph discussing in what ways the training data you used limits any inferential conclusions or predictions for new data you can make.
 
 Finally, discuss whether there may be any ethical concerns with your project. What are the benefits and risks associated with it?
-
-### Formatting
-
-All parts of your project should be professionally formatted. For example, this means labeling plots and figures and turning off code chunks.
-
-**You must comment your code!**
-
-**You must suppress all warnings and messages.**
-
-**You should label your code chunks.**
-
-Style and format does count for this assignment, so please take the time to make sure everything looks good and your data and code are properly formatted.
-
-**For the preliminary analysis, do not suppress code.**
-
-### Grading
-
-Submit your preliminary analysis to Gradescope by **Thursday, April 17, 2025 by 11:59 PM**.
-
-The preliminary analysis will be graded for completion. Each group will be assigned to another group. You will then evaluate each others preliminary analyses and provide feedback. See the next section for more details.
-
-## Peer Review
-
-Critically reviewing others’ work is a crucial part of the data scientific process, and this class is no exception. You will all be given read access to another project repo and have until lab time to provide a detailed critique of the preliminary analysis and data analysis. This review is intended to help you create a high quality final project, as well as give you experience reading and constructively critiquing the work of others.
-
-Groups will be paired by me.
-
-### Before Working on the Review
-
-Before working on the review, carefully read the guidelines for the preliminary analysis/written report.
-
-Think about the below questions as you read over what the other group exchanged with you. You do not have to answer all of these questions and your feedback might depend upon what the other group requests.
-
-### Content
-
-#### Introduction and Data
-
--   Is the research question and goal of the report clearly stated?
--   Does the introduction provide appropriate background context and motivation for a general reader?
--   Is the source of the data stated with an appropriate citation?
--   Is it clear when and how the data was collected?
--   Is data manipulation described clearly (missing data, creation of new variables, etc)?
--   Are the cases and relevant variables described?
-
-#### Methodology
-
--   Do the visualizations correspond to the stated research question?
--   Are visualizations effective and do they follow clear visualization principles (including elements like titles, labels, appropriate for the type of data, etc)?
--   Is the choice of method/approach justified?
-
-#### Results
-
--   Are the chosen techniques for answering the research question appropriate for the research context and type of data?
--   Is the research question answered effectively?
-
-#### Discussion
-
--   Is the answer to the research question summarized and supported by evidence?
--   Are limitations of the analysis clearly outlined?
--   Do the authors reflect on any implications the nature of the training data has for the generalizability of the findings?
--   Do the authors reflect on the ethicality of their work?
-
-#### Formatting
-
--   Is their code commented?
--   Are their code chunks labeled?
-
-#### General
-
--   Is the writing clear (including elements like spelling, grammar, etc)? Are you able to follow what is being done?
--   Is the coding clear? Are you able to follow precisely what is being done?
--   Are you able to reproduce all aspects of the report, including output, visualizations, etc?
--   Is the report well-formatted and readable (including layout but also only reporting relevant output, with no extraneous code, visuals, etc)?
--   Have they appropriate outlined the next steps with gaps clearly defined?
--   Is their repository well-organized or has it been difficult to find certain files?
--   Any suggestions for them moving forward?
-
-#### Final Considerations
-
--   What is one question you have for the group after reading their analysis?
--   What is one thing the group has done especially well?
-
-You have until **Thursday, April 27, 2025** to provide your comments to the group (with me included) in slack.
-
-### Grading
-
-You will be graded on the effort of your peer review. Your feedback should not be superficial; your goal should be to help your partner group really improve their project. All group members should contribute to the peer review feedback document.
-
-| Total                         | 15 pts  |
-|-------------------------------|---------|
-| **Breadth of comments**       | 6.5 pts |
-| **Depth of comments**         | 6.5 pts |
-| **Workflow and Organization** | 2 pts   |
