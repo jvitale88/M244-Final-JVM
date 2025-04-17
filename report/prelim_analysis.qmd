@@ -16,7 +16,7 @@ library(dplyr)
 library(reticulate)
 ```
 
-#### Introduction and Data
+# Introduction and Data
 
 The data set includes statistics from the 2024 Division 1 and 3 Men’s and Women’s Ultimate Frisbee Championships. The statistics were found on USA Ultimate, the non-profit organization serving as the governing body for ultimate in the United States, and were taken from a data visualization titled “USA Ultimate 2024 Nationals Stats Dashboard”, which was created by Ben Ayres. The data set includes 1665 rows which each correspond to an individual player, and it includes 15 variables which categorize the players by Division, Gender, and Team, and provide game statistics for each player. 
 
@@ -25,12 +25,12 @@ Ultimate frisbee is a sport growing in popularity at the collegiate level and wi
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
 ```{r}
-ultimate_data <- read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ulti_clean.csv")
+ultimate_data <- suppressMessages(read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ulti_clean.csv"))
 ```
 
-#### Methodology
+# Methodology
 
-#### *Summary Statistics*
+### *Summary Statistics*
 
 ```{r}
 ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
@@ -54,7 +54,7 @@ cor(summary_data, use = "complete.obs")
 pairs(summary_data, main = "Pairwise Plots of Ultimate Stats")
 ```
 
-### *Visualizations*
+### *Visualizations/EDA*
 
 ```{r gender-&-plus-minus}
 # Plot player's plus-minus scores and their gender
@@ -187,9 +187,190 @@ fviz_cluster(pam_res, data = df1[-4],
 
 We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. Additionally, although the EDA for a player's +/- score seems similar for division and gender, there are slight differences; therefore, we will fit the model for each combination of division and gender.
 
-The methodology section should include visualizations and summary statistics relevant to your research question. You should also justify the choice of method(s) used to answer your research question.
+# Results
 
-#### Results
+```{python}
+ultimate_data = r.ultimate_data
+
+import pandas as pd
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
+
+### *Ridge Regression* 
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    # Train Ridge Regression
+    model = Ridge(alpha=alpha)
+    model.fit(X_train, y_train)
+
+    # Output
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+```
+
+```{python}
+results = ridge_reg(ultimate_data)
+
+print("R² Score:", results['score (R^2)'])
+print("Coefficients:", results['coefficients'])
+print("Intercept:", results['intercept'])
+```
+
+#### Function to Fit Model by Division and Gender
+
+```{python}
+def ridge_by_div_gender(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results = {}
+
+    # Group by actual column values
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < 5:
+            continue  # Skip small groups
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=test_size, random_state=random_state
+        )
+
+        model = Ridge(alpha=alpha)
+        model.fit(X_train, y_train)
+
+        results[(division, gender)] = {
+            'model': model,
+            'score (R^2)': model.score(X_test, y_test),
+            'coefficients': dict(zip(feature_cols, model.coef_)),
+            'intercept': model.intercept_,
+            'scaler': scaler,
+            'n_samples': len(group_clean)
+        }
+
+    return results
+```
+
+```{python}
+resultsdg = ridge_by_div_gender(ultimate_data)
+
+for (level, gender), res in resultsdg.items():
+    print(f"{level} {gender} — R²: {res['score (R^2)']:.3f}")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print()
+```
+
+#### *Plotting Feature Contributions*
+
+```{python}
+def plot_feature_contributions(results):
+  
+    sns.set(style="whitegrid")
+
+    # For each group (level, gender), plot the feature coefficients
+    for (level, gender), res in results.items():
+        coefs = res['coefficients']
+        
+        # Sort features by absolute coefficient values
+        sorted_feats = sorted(coefs.items(), key=lambda x: abs(x[1]), reverse=True)
+        
+        # Prepare data for plotting
+        features = [feat for feat, _ in sorted_feats]
+        coef_values = [coef for _, coef in sorted_feats]
+        
+        # Plot the bar chart
+        plt.figure(figsize=(8, 6))
+        plt.barh(features, coef_values, color="skyblue")
+        plt.xlabel("Coefficient Value")
+        plt.title(f"Feature Contributions: {level} {gender}")
+        plt.tight_layout()
+        plt.show()
+```
+
+```{python}
+plot_feature_contributions(resultsdg)
+```
+
+#### **Prediction Model**
+
+```{python}
+def predict_plus_minus(ultimate_data, level, gender, player_stats, results):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    
+    if (level, gender) not in results:
+        raise ValueError(f"No model available for {level} {gender}")
+
+    model = results[(level, gender)]['model']
+    scaler = results[(level, gender)]['scaler']
+    
+    player_df = pd.DataFrame([player_stats], columns=feature_cols)
+    player_data_scaled = scaler.transform(player_df)
+
+    predicted_plus_minus = model.predict(player_data_scaled)[0]
+
+    return predicted_plus_minus
+```
+
+#### *Example Use of Prediction Model - Using Filler D1 Men Stats* 
+
+```{python}
+player_stats = {
+    'turns_per_game': 2.1,
+    'ds_per_game': 1.8,
+    'ast_per_game': 3.2,
+    'pts_per_game': 5.4
+}
+
+# Get the results from Ridge regression (run the model first)
+results = ridge_by_div_gender(ultimate_data)
+
+# Predict for Division 1 Men
+predicted_plus_minus_d1_men = predict_plus_minus(ultimate_data, 'Division 3', 'Men', player_stats, results)
+
+print(f"Predicted +/- score per game (D1 Men): {predicted_plus_minus_d1_men:.2f}")
+```
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
 
@@ -202,96 +383,3 @@ This section is a conclusion and discussion. This will require a summary of what
 You should also discuss issues pertaining to the reliability and validity of your data and the appropriateness of the analyses should also be discussed. You must include at least one paragraph discussing in what ways the training data you used limits any inferential conclusions or predictions for new data you can make.
 
 Finally, discuss whether there may be any ethical concerns with your project. What are the benefits and risks associated with it?
-
-### Formatting
-
-All parts of your project should be professionally formatted. For example, this means labeling plots and figures and turning off code chunks.
-
-**You must comment your code!**
-
-**You must suppress all warnings and messages.**
-
-**You should label your code chunks.**
-
-Style and format does count for this assignment, so please take the time to make sure everything looks good and your data and code are properly formatted.
-
-**For the preliminary analysis, do not suppress code.**
-
-### Grading
-
-Submit your preliminary analysis to Gradescope by **Thursday, April 17, 2025 by 11:59 PM**.
-
-The preliminary analysis will be graded for completion. Each group will be assigned to another group. You will then evaluate each others preliminary analyses and provide feedback. See the next section for more details.
-
-## Peer Review
-
-Critically reviewing others’ work is a crucial part of the data scientific process, and this class is no exception. You will all be given read access to another project repo and have until lab time to provide a detailed critique of the preliminary analysis and data analysis. This review is intended to help you create a high quality final project, as well as give you experience reading and constructively critiquing the work of others.
-
-Groups will be paired by me.
-
-### Before Working on the Review
-
-Before working on the review, carefully read the guidelines for the preliminary analysis/written report.
-
-Think about the below questions as you read over what the other group exchanged with you. You do not have to answer all of these questions and your feedback might depend upon what the other group requests.
-
-### Content
-
-#### Introduction and Data
-
--   Is the research question and goal of the report clearly stated?
--   Does the introduction provide appropriate background context and motivation for a general reader?
--   Is the source of the data stated with an appropriate citation?
--   Is it clear when and how the data was collected?
--   Is data manipulation described clearly (missing data, creation of new variables, etc)?
--   Are the cases and relevant variables described?
-
-#### Methodology
-
--   Do the visualizations correspond to the stated research question?
--   Are visualizations effective and do they follow clear visualization principles (including elements like titles, labels, appropriate for the type of data, etc)?
--   Is the choice of method/approach justified?
-
-#### Results
-
--   Are the chosen techniques for answering the research question appropriate for the research context and type of data?
--   Is the research question answered effectively?
-
-#### Discussion
-
--   Is the answer to the research question summarized and supported by evidence?
--   Are limitations of the analysis clearly outlined?
--   Do the authors reflect on any implications the nature of the training data has for the generalizability of the findings?
--   Do the authors reflect on the ethicality of their work?
-
-#### Formatting
-
--   Is their code commented?
--   Are their code chunks labeled?
-
-#### General
-
--   Is the writing clear (including elements like spelling, grammar, etc)? Are you able to follow what is being done?
--   Is the coding clear? Are you able to follow precisely what is being done?
--   Are you able to reproduce all aspects of the report, including output, visualizations, etc?
--   Is the report well-formatted and readable (including layout but also only reporting relevant output, with no extraneous code, visuals, etc)?
--   Have they appropriate outlined the next steps with gaps clearly defined?
--   Is their repository well-organized or has it been difficult to find certain files?
--   Any suggestions for them moving forward?
-
-#### Final Considerations
-
--   What is one question you have for the group after reading their analysis?
--   What is one thing the group has done especially well?
-
-You have until **Thursday, April 27, 2025** to provide your comments to the group (with me included) in slack.
-
-### Grading
-
-You will be graded on the effort of your peer review. Your feedback should not be superficial; your goal should be to help your partner group really improve their project. All group members should contribute to the peer review feedback document.
-
-| Total                         | 15 pts  |
-|-------------------------------|---------|
-| **Breadth of comments**       | 6.5 pts |
-| **Depth of comments**         | 6.5 pts |
-| **Workflow and Organization** | 2 pts   |
