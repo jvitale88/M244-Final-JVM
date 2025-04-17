@@ -1,0 +1,186 @@
+---
+title: "VL_prelim_analysis"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+```{python}
+# import necessary python packages here
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+from sklearn.exceptions import DataConversionWarning
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.compose import make_column_transformer
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import GroupKFold
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV
+from sklearn.linear_model import ElasticNet, ElasticNetCV
+from sklearn.compose import ColumnTransformer
+```
+
+```{python}
+
+ulti_clean = pd.read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ulti_clean.csv")
+```
+
+```{python}
+def lasso_reg(ulti_clean, alpha=1.0, test_size=0.2, random_state=56):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ulti_clean[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    # Train Ridge Regression
+    model = Lasso(alpha=alpha)
+    model.fit(X_train, y_train)
+    
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+    # Output
+    score = model.score(X_test, y_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = mean_squared_error(y_test, y_pred) ** 0.5
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'MAE': mae,
+        'RMSE': rmse,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+```
+
+```{python}
+lasso_results = lasso_reg(ulti_clean)
+
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+
+print("R² Score:", lasso_results['score (R^2)'])
+print("Coefficients:", lasso_results['coefficients'])
+print("Intercept:", lasso_results['intercept'])
+```
+
+## Function grouped by division and gender
+
+```{python}
+def lasso_by_div_gender(ulti_clean, alpha=1.0, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results = {}
+
+    # Group by actual column values
+    for (division, gender), group in ulti_clean.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < 5:
+            continue  # Skip small groups
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=test_size, random_state=random_state
+        )
+
+        model = Lasso(alpha=alpha)
+        model.fit(X_train, y_train)
+
+        results[(division, gender)] = {
+            'model': model,
+            'score (R^2)': model.score(X_test, y_test),
+            'coefficients': dict(zip(feature_cols, model.coef_)),
+            'intercept': model.intercept_,
+            'scaler': scaler,
+            'n_samples': len(group_clean)
+        }
+
+    return results
+```
+
+```{python}
+resultsdg = lasso_by_div_gender(ulti_clean)
+
+for (level, gender), res in resultsdg.items():
+    print(f"{level} {gender} — R²: {res['score (R^2)']:.3f}")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print()
+```
+
+```{python}
+def predict_plus_minus(ulti_clean, level, gender, player_stats, lasso_results):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    
+    if (level, gender) not in results:
+        raise ValueError(f"No model available for {level} {gender}")
+
+    model = results[(level, gender)]['model']
+    scaler = results[(level, gender)]['scaler']
+    
+    player_df = pd.DataFrame([player_stats], columns=feature_cols)
+    player_data_scaled = scaler.transform(player_df)
+
+    predicted_plus_minus = model.predict(player_data_scaled)[0]
+
+    return predicted_plus_minus
+```
+
+```{python}
+# Example dictionary holding trained models and scalers for different (level, gender) pairs
+# In practice, you'd generate this by calling your lasso_reg function on each group
+results = {
+    ('D1', 'Men'): lasso_reg(ulti_clean[ (ulti_clean['level'] == 'D1') & (ulti_clean['gender'] == 'Men') ]),
+    ('D3', 'Women'): lasso_reg(ulti_clean[ (ulti_clean['level'] == 'D3') & (ulti_clean['gender'] == 'Women') ])
+}
+
+# Example player stats (in the same order as feature_cols)
+sample_player_stats = {
+    'turns_per_game': 1.5,
+    'ds_per_game': 0.8,
+    'ast_per_game': 2.1,
+    'pts_per_game': 3.5
+}
+
+# Convert to list of values in correct order
+player_stats_list = [sample_player_stats[col] for col in ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']]
+
+# Make prediction
+predicted_score = predict_plus_minus(ulti_clean, level='D1', gender='Men', player_stats=player_stats_list, results=results)
+
+print(f"Predicted Plus-Minus Score: {predicted_score:.2f}")
+
+
+```
