@@ -14,6 +14,7 @@ library(cluster)
 library(factoextra)
 library(dplyr)
 library(reticulate)
+library(here)
 ```
 
 # Introduction and Data
@@ -25,7 +26,7 @@ Ultimate frisbee is a sport growing in popularity at the collegiate level and wi
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
 ```{r}
-ultimate_data <- suppressMessages(read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ulti_clean.csv"))
+ultimate_data <- read_csv(here('data', 'ulti_clean.csv'))
 ```
 
 # Methodology
@@ -194,6 +195,8 @@ ultimate_data = r.ultimate_data
 
 import pandas as pd
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import numpy as np
@@ -201,7 +204,99 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 ```
 
-### *Ridge Regression* 
+### *Linear Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+
+def linear_reg(ultimate_data, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+    
+results_linear = linear_reg(ultimate_data)
+
+
+print("R² Score:", results_linear['score (R^2)'])
+print("Coefficients:", results_linear['coefficients'])
+print("Intercept:", results_linear['intercept'])
+```
+
+#### Function to Fit Model by Division and Gender
+
+```{python}
+def linear_by_div_gender(ultimate_data, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results_linear = {}
+
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < 5:
+            continue
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=test_size, random_state=random_state
+        )
+
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+
+        results_linear[(division, gender)] = {
+            'model': model,
+            'score (R^2)': model.score(X_test, y_test),
+            'coefficients': dict(zip(feature_cols, model.coef_)),
+            'intercept': model.intercept_,
+            'scaler': scaler,
+            'n_samples': len(group_clean)
+        }
+
+    return results_linear
+
+
+resultsdg_linear = linear_by_div_gender(ultimate_data)
+
+for (level, gender), res in resultsdg_linear.items():
+    print(f"{level} {gender} — R²: {res['score (R^2)']:.3f}")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print()
+```
+
+### *Ridge Regression*
 
 #### Function to Fit Model to Complete Data Set
 
@@ -336,40 +431,57 @@ plot_feature_contributions(resultsdg)
 #### **Prediction Model**
 
 ```{python}
-def predict_plus_minus(ultimate_data, level, gender, player_stats, results):
+def predict_plus_minus(ultimate_data, level, gender, player_stats, ridge_results, linear_results):
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
     
-    if (level, gender) not in results:
-        raise ValueError(f"No model available for {level} {gender}")
+    if (level, gender) not in ridge_results:
+        raise ValueError(f"No Ridge model available for {level} {gender}")
+    if (level, gender) not in linear_results:
+        raise ValueError(f"No Linear model available for {level} {gender}")
 
-    model = results[(level, gender)]['model']
-    scaler = results[(level, gender)]['scaler']
-    
+    ridge_model = ridge_results[(level, gender)]['model']
+    ridge_scaler = ridge_results[(level, gender)]['scaler']
+
+    linear_model = linear_results[(level, gender)]['model']
+    linear_scaler = linear_results[(level, gender)]['scaler']
+
     player_df = pd.DataFrame([player_stats], columns=feature_cols)
-    player_data_scaled = scaler.transform(player_df)
 
-    predicted_plus_minus = model.predict(player_data_scaled)[0]
+    ridge_scaled = ridge_scaler.transform(player_df)
+    linear_scaled = linear_scaler.transform(player_df)
 
-    return predicted_plus_minus
+    predicted_ridge = ridge_model.predict(ridge_scaled)[0]
+    predicted_linear = linear_model.predict(linear_scaled)[0]
+
+    return {
+        'ridge': predicted_ridge,
+        'linear': predicted_linear
+    }
+
 ```
 
-#### *Example Use of Prediction Model - Using Filler D1 Men Stats* 
+#### *Example Use of Prediction Model - Using Filler D1 Men Stats*
+
+Put monks data here?
 
 ```{python}
 player_stats = {
     'turns_per_game': 2.1,
     'ds_per_game': 1.8,
     'ast_per_game': 3.2,
-    'pts_per_game': 5.4
-}
+    'pts_per_game': 5.4}
 
 # Get the results from Ridge regression (run the model first)
-results = ridge_by_div_gender(ultimate_data)
+ridge_results = ridge_by_div_gender(ultimate_data)
+linear_results = linear_by_div_gender(ultimate_data)
+
 
 # Predict for Division 1 Men
-predicted_plus_minus_d1_men = predict_plus_minus(ultimate_data, 'Division 3', 'Men', player_stats, results)
+predicted_plus_minus_d3_men = predict_plus_minus(ultimate_data, 'Division 1', 'Men', player_stats, ridge_results, linear_results)
 
-print(f"Predicted +/- score per game (D1 Men): {predicted_plus_minus_d1_men:.2f}")
+print("Predicted +/- score per game (D3 Men):")
+print(f"    Ridge: {predicted_plus_minus_d1_men['ridge']:.2f}")
+print(f"    Linear: {predicted_plus_minus_d1_men['linear']:.2f}")
 ```
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
