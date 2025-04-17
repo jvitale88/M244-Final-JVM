@@ -1,0 +1,57 @@
+---
+title: "Prelim analysis "
+author: "Julia Vitale"
+format: pdf
+execute: 
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r}
+library(reticulate)
+library(tidyverse)
+library(here)
+library(broom)
+#read in data
+df <- read_csv(here('data', 'ulti_clean.csv'))
+
+
+#fit grouped/nested linear regression models
+
+models <- df %>%
+  group_by(division) %>%
+  nest() %>%
+  mutate(model = map(data, ~ lm(pls_mns_per_game ~ ds_per_game + ast_per_game + pts_per_game + turns_per_game, data = .x)))
+
+#make dataframe with coefficients
+coefficients_df <- models %>%
+  mutate(tidy_model = map(model, broom::tidy)) %>%
+  unnest(tidy_model) %>%
+  select(division, term, estimate) %>%
+  pivot_wider(names_from = term, values_from = estimate)
+
+model_metrics <- models %>%
+  mutate(
+    glance = map(model, glance),
+    mse = map_dbl(model, ~ mean(residuals(.x)^2))
+  ) %>%
+  unnest(glance) %>%
+  select(division, r.squared, mse)
+
+linear_df <- coefficients_df %>%
+  left_join(model_metrics, by = c("division")) %>%
+  mutate(type = "Linear")
+
+
+```
+
+
+```{python}
+import pandas as pd
+import numpy as np
+linear_df = r.linear_df
+
+
+```
+
