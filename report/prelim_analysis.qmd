@@ -194,11 +194,19 @@ We are fitting all three models that predict continuous variables: linear, LASSO
 ultimate_data = r.ultimate_data
 
 import pandas as pd
-from sklearn.linear_model import Ridge
-from sklearn.linear_model import LinearRegression
-
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.exceptions import DataConversionWarning
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.compose import make_column_transformer
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import GroupKFold
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV
+from sklearn.linear_model import ElasticNet, ElasticNetCV
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import Lasso
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -428,34 +436,151 @@ def plot_feature_contributions(results):
 plot_feature_contributions(resultsdg)
 ```
 
+### *Lasso Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+def lasso_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=56):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    # Train Ridge Regression
+    model = Lasso(alpha=alpha)
+    model.fit(X_train, y_train)
+    
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+    # Output
+    score = model.score(X_test, y_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = mean_squared_error(y_test, y_pred) ** 0.5
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'MAE': mae,
+        'RMSE': rmse,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+```
+
+```{python}
+lasso_results = lasso_reg(ultimate_data)
+
+print("R² Score:", lasso_results['score (R^2)'])
+print("Coefficients:", lasso_results['coefficients'])
+print("Intercept:", lasso_results['intercept'])
+```
+
+## Function grouped by division and gender
+
+```{python}
+def lasso_by_div_gender(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results = {}
+
+    # Group by actual column values
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < 5:
+            continue  
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=test_size, random_state=random_state
+        )
+
+        model = Lasso(alpha=alpha)
+        model.fit(X_train, y_train)
+
+        results[(division, gender)] = {
+            'model': model,
+            'score (R^2)': model.score(X_test, y_test),
+            'coefficients': dict(zip(feature_cols, model.coef_)),
+            'intercept': model.intercept_,
+            'scaler': scaler,
+            'n_samples': len(group_clean)
+        }
+
+    return results
+```
+
+```{python}
+resultsdg = lasso_by_div_gender(ultimate_data)
+
+for (level, gender), res in resultsdg.items():
+    print(f"{level} {gender} — R²: {res['score (R^2)']:.3f}")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print()
+```
+
 #### **Prediction Model**
 
 ```{python}
-def predict_plus_minus(ultimate_data, level, gender, player_stats, ridge_results, linear_results):
+def predict_plus_minus(ultimate_data, level, gender, player_stats, ridge_results, linear_results, lasso_results):
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
     
     if (level, gender) not in ridge_results:
         raise ValueError(f"No Ridge model available for {level} {gender}")
     if (level, gender) not in linear_results:
         raise ValueError(f"No Linear model available for {level} {gender}")
+    if (level, gender) not in lasso_results:
+        raise ValueError(f"No Lasso model available for {level} {gender}")
 
     ridge_model = ridge_results[(level, gender)]['model']
     ridge_scaler = ridge_results[(level, gender)]['scaler']
 
     linear_model = linear_results[(level, gender)]['model']
     linear_scaler = linear_results[(level, gender)]['scaler']
+    
+    lasso_model = lasso_results[(level, gender)]['model']
+    lasso_scaler = lasso_results[(level, gender)]['scaler']
 
     player_df = pd.DataFrame([player_stats], columns=feature_cols)
 
     ridge_scaled = ridge_scaler.transform(player_df)
     linear_scaled = linear_scaler.transform(player_df)
+    lasso_scaled = lasso_scaler.transform(player_df)
 
     predicted_ridge = ridge_model.predict(ridge_scaled)[0]
     predicted_linear = linear_model.predict(linear_scaled)[0]
+    predicted_lasso = lasso_model.predict(lasso_scaled)[0]
+
 
     return {
         'ridge': predicted_ridge,
-        'linear': predicted_linear
+        'linear': predicted_linear,
+        'lasso': predicted_lasso
     }
 
 ```
@@ -474,14 +599,17 @@ player_stats = {
 # Get the results from Ridge regression (run the model first)
 ridge_results = ridge_by_div_gender(ultimate_data)
 linear_results = linear_by_div_gender(ultimate_data)
+lasso_results = lasso_by_div_gender(ultimate_data)
 
 
 # Predict for Division 1 Men
-predicted_plus_minus_d3_men = predict_plus_minus(ultimate_data, 'Division 1', 'Men', player_stats, ridge_results, linear_results)
+predicted_plus_minus_d1_men = predict_plus_minus(ultimate_data, 'Division 1', 'Men', player_stats, ridge_results, linear_results, lasso_results)
 
-print("Predicted +/- score per game (D3 Men):")
+print("Predicted +/- score per game (D1 Men):")
 print(f"    Ridge: {predicted_plus_minus_d1_men['ridge']:.2f}")
 print(f"    Linear: {predicted_plus_minus_d1_men['linear']:.2f}")
+print(f"    Lasso: {predicted_plus_minus_d1_men['lasso']:.2f}")
+
 ```
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
