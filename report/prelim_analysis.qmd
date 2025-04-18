@@ -9,7 +9,7 @@ editor: visual
 library(tidyverse)
 library(gtsummary)
 library(ggplot2)
-library(psych)
+#library(psych)
 library(cluster)
 library(factoextra)
 library(dplyr)
@@ -26,7 +26,7 @@ Ultimate frisbee is a sport growing in popularity at the collegiate level and wi
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
 ```{r}
-ultimate_data <- read_csv(here('data', 'ulti_clean.csv'))
+ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ulti_clean.csv")
 ```
 
 # Methodology
@@ -587,8 +587,6 @@ def predict_plus_minus(ultimate_data, level, gender, player_stats, ridge_results
 
 #### *Example Use of Prediction Model - Using Filler D1 Men Stats*
 
-Put monks data here?
-
 ```{python}
 player_stats = {
     'turns_per_game': 2.1,
@@ -616,10 +614,52 @@ Showcase how you arrived at answers to your research question using the techniqu
 
 **Provide only the main results from your analysis.** The goal is not to do an exhaustive data analysis (calculate every possible statistic and perform every possible procedure for all variables). Rather, you should demonstrate that you are proficient at asking meaningful questions and answering them using data, that you are skilled in interpreting and presenting results, and that you can accomplish these tasks using R and Python. More is not always better.
 
-#### Discussion
+#### Discussion and Conclusion
 
-This section is a conclusion and discussion. This will require a summary of what you have learned about your research question along with statistical and methodological arguments supporting your conclusions. You should critique your own methods and provide suggestions for improving your analysis and future work.
+In this project, we explored the feasibility of building a predictive model to estimate a player's plus-minus score in college Ultimate Frisbee based on individual game statistics: turnovers per game, defensive blocks per game, assists per game, and points per game. We implemented three distinct regression models—Linear Regression, Ridge Regression, and Lasso Regression—to evaluate how well these features could predict the target outcome.
 
-You should also discuss issues pertaining to the reliability and validity of your data and the appropriateness of the analyses should also be discussed. You must include at least one paragraph discussing in what ways the training data you used limits any inferential conclusions or predictions for new data you can make.
+Both **Linear** and **Ridge Regression** models produced very similar predictions across multiple gender-division combinations, suggesting that the underlying relationships in the data are fairly linear and do not require strong regularization to prevent overfitting.
 
-Finally, discuss whether there may be any ethical concerns with your project. What are the benefits and risks associated with it?
+In contrast, **Lasso Regression** consistently underperformed. For example, when provided with the input player_stats = { 'turns_per_game': 2.1, 'ds_per_game': 1.8, 'ast_per_game': 3.2, 'pts_per_game': 5.4 } its predicted plus-minus score was Ridge: 8.28, Linear: 8.30 and Lasso: 0.68. This significant deviation from the other two models suggests that Lasso may be overly aggressive in shrinking coefficients to zero—likely eliminating valuable predictors entirely. Given that we only have four features, the benefits of Lasso's feature selection are minimal, and its use may be unwarranted in this case.
+
+### Methodological Evaluation
+
+To ensure consistent model evaluation, we split the dataset by both **division (D-I vs. D-III)** and **gender (men’s vs. women’s)**, and trained separate models for each subgroup. This decision was grounded in the understanding that the dynamics of ultimate frisbee can vary substantially across these categories, and that a model trained on pooled data might obscure those differences.
+
+## Limitations
+
+1.  **Small feature set**: Only four predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
+2.  **Potential data imbalance**: The performance of the models across different (division, gender) groups could vary depending on how many observations we had per group. If some subgroups had fewer examples, model stability would be affected.
+3.  Lack of cross-validation metrics: Although we evaluated the models qualitatively through predictions, we did not include quantitative metrics such as RMSE or R² for each subgroup. Including these would allow for a more robust evaluation of model accuracy and generalizability.
+
+### Data Reliability and Validity
+
+The dataset was sourced from a publicly available website and published within the past year. While not a first-party dataset, its reliability is bolstered by several key factors:
+
+1.  It reflects official statistics from the most recent USA Ultimate College National Championships, meaning it's drawn from the highest college-level competition.
+2.  As active Frisbee players ourselves, we were able to recognize nearly all the teams listed and even some individual players, affirming the data's authenticity and face validity.
+3.  The dataset has had multiple downloads from the site, indicating community engagement and a degree of scrutiny.
+
+### Appropriateness of the Analysis
+
+Our analytical choices—using regularized regression methods and controlling for gender and division—are appropriate given our objective and dataset size. We standardized our features using `StandardScaler()` and implemented a consistent 80/20 train-test split across all models (as shown in the `lasso_reg` function), which helped avoid data leakage and ensured fair comparison between models.
+
+Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions. However, our choice of a fixed alpha parameter (rather than using cross-validation to tune hyperparameters) could limit model optimization and generalizability.
+
+## Ethical Considerations
+
+Benefits:
+
+-   Enhanced Performance Insights: Our model can provide players and coaches with data-driven insights, potentially informing training and strategy.​
+
+-   Objective Evaluation: By quantifying performance metrics, we aim to reduce subjective biases in player assessments.
+
+Risks:
+
+-   Privacy Concerns: Even though our data is publicly available, using it for predictive modeling raises questions about consent and the extent to which athletes are aware of or agree to such analyses.
+
+-   Potential for Misuse: There's a risk that our model could be used to make decisions about player selection or playing time without considering the broader context of an athlete's performance or potential.
+
+-   Bias and Fairness: If our model inadvertently reflects existing biases in the data, it could perpetuate inequalities, especially if used in decision-making processes.
+
+Overall, this project demonstrates the potential of data-driven approaches to enhance our understanding of individual performance in ultimate Frisbee. While our models show promise within the scope of elite college-level play, future work must address broader data inclusion to effective application.
