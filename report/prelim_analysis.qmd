@@ -9,7 +9,7 @@ editor: visual
 library(tidyverse)
 library(gtsummary)
 library(ggplot2)
-#library(psych)
+library(psych)
 library(cluster)
 library(factoextra)
 library(dplyr)
@@ -26,7 +26,7 @@ Ultimate frisbee is a sport growing in popularity at the collegiate level and wi
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
 ```{r}
-ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ulti_clean.csv")
+ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ultimate_data.csv")
 ```
 
 # Methodology
@@ -441,7 +441,7 @@ plot_feature_contributions(resultsdg)
 #### Function to Fit Model to Complete Data Set
 
 ```{python}
-def lasso_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=56):
+def lasso_reg(ultimate_data, test_size=0.2, random_state=56):
     # Define features and target
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
     target_col = 'pls_mns_per_game'
@@ -459,30 +459,33 @@ def lasso_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=56):
 
     # Train/test split
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
-
-    # Train Ridge Regression
-    model = Lasso(alpha=alpha)
+    
+    # Use LassoCV to find the best alpha
+    model = LassoCV(alphas=[0.0001, 0.001, 0.01, 0.1, 1, 10], cv=5)
     model.fit(X_train, y_train)
     
     # Make predictions
     y_pred = model.predict(X_test)
 
-    # Output
+        # Output
     score = model.score(X_test, y_test)
     mae = mean_absolute_error(y_test, y_pred)
     rmse = mean_squared_error(y_test, y_pred) ** 0.5
     coef = dict(zip(feature_cols, model.coef_))
     intercept = model.intercept_
+    best_alpha = model.alpha_
 
     return {
         'model': model,
         'score (R^2)': score,
+        'best_alpha': best_alpha,
         'MAE': mae,
         'RMSE': rmse,
         'coefficients': coef,
         'intercept': intercept,
         'scaler': scaler
     }
+
 ```
 
 ```{python}
@@ -496,7 +499,7 @@ print("Intercept:", lasso_results['intercept'])
 ## Function grouped by division and gender
 
 ```{python}
-def lasso_by_div_gender(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+def lasso_by_div_gender(ultimate_data, test_size=0.2, random_state=42):
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
     target_col = 'pls_mns_per_game'
 
@@ -519,7 +522,8 @@ def lasso_by_div_gender(ultimate_data, alpha=1.0, test_size=0.2, random_state=42
             X_scaled, y, test_size=test_size, random_state=random_state
         )
 
-        model = Lasso(alpha=alpha)
+         # Use LassoCV to find the best alpha
+        model = LassoCV(alphas=[0.0001, 0.001, 0.01, 0.1, 1, 10], cv=5)
         model.fit(X_train, y_train)
 
         results[(division, gender)] = {
