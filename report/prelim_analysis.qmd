@@ -641,6 +641,36 @@ print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
 
 
 ```
+```{r}
+#assessing multicollinearity with VIF
+
+df <- ultimate_data %>%
+  select(c('turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game', 'pls_mns_per_game'))
+corrplot::corrplot(cor(df), method = 'circle')
+lm_model <- lm(pls_mns_per_game ~ turns_per_game + ds_per_game + ast_per_game + pts_per_game, data = df)
+summary(lm_model)
+
+
+vif_results <- car::vif(lm_model)
+vif_df <- data.frame(Variable = names(vif_results),
+                     VIF = vif_results)
+
+vif_df$Variable <- factor(vif_df$Variable,levels = c('turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game'),labels = c("Turns per game", "Ds per game", "Assists per game", "Points per game"))
+
+
+ggplot(vif_df, aes(x = Variable, y = VIF)) +
+  geom_bar(stat = 'identity', fill = 'steelblue') +
+  geom_hline(yintercept = 5, linetype = 'dashed', color = 'red') +
+  scale_y_continuous(limits = c(0, 5)) +
+  labs(title = "Variance Inflation Factor (VIF) for Regression Model",
+       y = "VIF",
+       x = "Variable") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 10))
+
+# no apparent multicollinearity
+
+```
 
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
