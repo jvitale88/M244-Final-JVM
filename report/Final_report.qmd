@@ -30,9 +30,6 @@ here()
 ultimate_data <- read_csv(here('data', "ulti_clean.csv"))
 ```
 
-```{r}
-```
-
 # Methodology
 
 ### *Summary Statistics*
@@ -270,7 +267,6 @@ for (level, gender), result in results_ridge2dg.items():
 
 ### *Lasso Regression*
 
-
 ## Function grouped by division and gender
 
 ```{python}
@@ -338,6 +334,7 @@ results_df_lasso = lasso_reg_by_group(ultimate_data)
 ```
 
 #print results
+
 ```{python}
 # Create an empty list to store each row of the DataFrame
 rows = []
@@ -369,7 +366,6 @@ r2_scores_df = r2_scores_df.sort_values(by=['level', 'gender']).reset_index(drop
 # Display the result
 ```
 
-
 ```{r}
 temp <- py$r2_scores_df %>% mutate_if(is.numeric, round, 4)
 
@@ -378,8 +374,6 @@ temp %>% as_tibble() %>% gt() %>%
   tab_header(
     title = "Cross-validated R-sqaured values")
 ```
-
-
 
 #### **Prediction Model**
 
@@ -501,4 +495,4 @@ Overall, this project demonstrates the potential of data-driven approaches to en
 
 ## What We Would Have Done Differently
 
-If we were to restart the project, we would do far more a rigorous analysis of the variables used. While all the variables currently chosen did show evidence affecting the target variable, some additional work in order to confirm that these four are the most influencial out of all the possible options would have further.
+If we were to restart the project, we would have done a far more a rigorous analysis of the explanatory variables used. While all the variables currently chosen did show evidence affecting the target variable, we choose them based on our advanced knowledge and experience playing the sport and not through empirical means. It would strengthen the accuracy and reliability of our models results if could empirically confirm that these four are the most influential variables out of all the possible options in the dataset. To empirically test would include calculations such as making a correlation heatmap of all the explanatory variables against the outcome variable. Also, there could be a lot to gain if we modified our outcome variable so that it was potentially be more informative. The plus-minus statistic is taken from basketball and while useful in Frisbee as well, it has its limitations. One of them is that in most Frisbee games there is an Offensive-line and Defensive-line with totally different players on each line. And the team on offensive has a far greater probability of scoring. Therefore, there could be some really good players on the Defensive-line who keep getting scored on and this statistic would unfairly represent them as worse than Offensive-line players even if that may not necessarily be the case.
