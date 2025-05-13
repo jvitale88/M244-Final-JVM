@@ -2,6 +2,7 @@
 title: "Final_report"
 format: html
 editor: visual
+echo: false
 ---
 
 ```{r}
@@ -20,7 +21,7 @@ library(here)
 
 The data set includes statistics from the 2024 Division 1 and 3 Men’s and Women’s Ultimate Frisbee Championships. The statistics were found on USA Ultimate, the non-profit organization serving as the governing body for ultimate in the United States, and were taken from a data visualization titled “USA Ultimate 2024 Nationals Stats Dashboard”, which was created by Ben Ayres. The data set includes 1665 rows which each correspond to an individual player, and it includes 15 variables which categorize the players by Division, Gender, and Team, and provide game statistics for each player. 
 
-Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. These variables all relate to a player's effectiveness on the field, which is why we will use them to predict pls_mns_per_game. We will also stratify by division and gender, so that we ensure that we have an accurate model for each group. We will have four models in the final product, DI Men, DI Women, DIII Men, and DIII Women.
+Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact, calculated as the difference between the points scored and the points allowed while the player is on the court) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. These variables all relate to a player's effectiveness on the field, which is why we will use them to predict pls_mns_per_game. We will also stratify by division and gender, so that we ensure that we have an accurate model for each group. We will have four models in the final product, DI Men, DI Women, DIII Men, and DIII Women.
 
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
@@ -29,30 +30,22 @@ here()
 ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ultimate_data.csv")
 ```
 
+```{r}
+ultimate_data <- read_csv("/Users/miazottoli/Desktop/M244-Final-JVM/data/ulti_clean.csv")
+```
+
 # Methodology
 
 ### *Summary Statistics*
 
-```{r}
-ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
-```
-
-```{r}
+```{r summary-statistics-for-relevant-variables}
 summary_data <- ultimate_data[, c("pls_mns_per_game", "turns_per_game", "ds_per_game", "ast_per_game", "pts_per_game")]
 
 summary(summary_data)
 ```
 
-```{r}
-describe(summary_data)
-```
-
-```{r}
+```{r view-correlations-between-relevant-variables}
 cor(summary_data, use = "complete.obs")
-```
-
-```{r}
-pairs(summary_data, main = "Pairwise Plots of Ultimate Stats")
 ```
 
 ### *Visualizations/EDA*
@@ -95,49 +88,6 @@ ggplot(d1, aes(x = gender, y = plus_minus, fill = gender)) +
   theme_minimal()
 ```
 
-```{r division-level-&-plus-minus}
-# Plot player's plus-minus score against the divisional level they are playing in
-ggplot(ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
-  geom_violin(trim = FALSE) +
-  labs(
-    title = "Player's +/- Score for Division 1 vs Division 3",
-    x = "Division",
-    y = "Player's +/- Score"
-  ) +
-  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
-  theme_minimal()
-
-# Filter table to create a new table called women_ultimate_data that only contains female players
-women_ultimate_data <- ultimate_data %>%
-  filter(gender == "Women")
-
-# Plot female player's plus-minus score against the divisional level they are playing in
-ggplot(women_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
-  geom_violin(trim = FALSE) +
-  labs(
-    title = "Player's +/- Score for Division 1 vs Division 3 Women",
-    x = "Division",
-    y = "Player's +/- Score"
-  ) +
-  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
-  theme_minimal()
-
-# Filter table to create a new table called men_ultimate_data that only contains male players
-men_ultimate_data <- ultimate_data %>%
-  filter(gender == "Men")
-
-# Plot male player's plus-minus score against the divisional level they are playing in
-ggplot(men_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
-  geom_violin(trim = FALSE) +
-  labs(
-    title = "Player's +/- Score for Division 1 vs Division 3 Men",
-    x = "Division",
-    y = "Player's +/- Score"
-  ) +
-  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
-  theme_minimal()
-```
-
 ```{r plus-minus-&-other-variable}
 
 # Plot a player's plus-minus score and their points per game for the different divisions and genders
@@ -165,25 +115,6 @@ ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
   labs(x = "Assists per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
   scale_color_viridis_d()
-```
-
-```{r PCA}
-
-# Create a dataset df1 by selecting the following the columns below
-df1 <- ultimate_data %>% select(c(
-  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game, ast_per_game
-))
-
-# Perform principle component analysis on df1 
-pam_res <- pam(df1[-4], 3)
-
-# Plots the three clusters
-fviz_cluster(pam_res, data = df1[-4],
-             geom = "point",
-             ellipse.type = "convex",
-             palette = "jco",
-             ggtheme = theme_minimal()) +
-  labs(title = "Principal Component Analysis of Ultimate Data")
 ```
 
 We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. Additionally, although the EDA for a player's +/- score seems similar for division and gender, there are slight differences; therefore, we will fit the model for each combination of division and gender.
