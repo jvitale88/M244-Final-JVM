@@ -825,3 +825,7 @@ Risks:
 -   Bias and Fairness: If our model inadvertently reflects existing biases in the data, it could perpetuate inequalities, especially if used in decision-making processes.
 
 Overall, this project demonstrates the potential of data-driven approaches to enhance our understanding of individual performance in ultimate Frisbee. While our models show promise within the scope of elite college-level play, future work must address broader data inclusion to effective application.
+
+## What We Would Have Done Differently
+
+If we were to restart the project, we would do far more a rigorous analysis of the variables used. While all the variables currently chosen did show evidence affecting the target variable, some additional work in order to confirm that these four are the most influencial out of all the possible options would have further.
