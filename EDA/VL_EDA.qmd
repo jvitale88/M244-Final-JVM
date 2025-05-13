@@ -8,19 +8,35 @@ editor: visual
 
 Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
 
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+## Data viz
 
 ```{r}
-1 + 1
+# Load necessary libraries
+library(tidyverse)
+library(polite)
+library(rvest)
+library(ggplot2)
+library(dplyr)
 ```
-
-You can add options to executable code like this
 
 ```{r}
-#| echo: false
-2 * 2
+ultimate_dataset <- read.csv("/Users/Vishnu/Downloads/ultimate_college_championship.csv")
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r filter}
+d1 <- ultimate_dataset[ultimate_dataset$level == "Division 3",]
+```
+
+```{r}
+# Plot plus_minus variable against pts_per_game
+
+plus_minus_factos <- d1 %>%
+  ggplot(aes(x = plus_minus, y = pts_per_game)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Plus minus",
+       y = "Points per game",
+       title = "Plus minus stat versus points per game")
+
+plus_minus_factos
+```

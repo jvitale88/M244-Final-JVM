@@ -364,8 +364,6 @@ def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
     }
 ```
 
-
-
 #### Function to Fit Model by Division and Gender
 
 ```{python}
@@ -729,7 +727,6 @@ print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
 results_ridge_cv
 
 ```
-
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
 
