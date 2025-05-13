@@ -1,5 +1,6 @@
 ---
-title: "Final_report"
+title: "Math 255: Final Report"
+author: "Mia Zottoli, Vishnu Lakshman, Julia Vitale"
 format: html
 editor: visual
 echo: false
@@ -22,7 +23,7 @@ library(here)
 
 The data set includes statistics from the 2024 Division 1 and 3 Men’s and Women’s Ultimate Frisbee Championships. The statistics were found on USA Ultimate, the non-profit organization serving as the governing body for ultimate in the United States, and were taken from a data visualization titled “USA Ultimate 2024 Nationals Stats Dashboard”, which was created by Ben Ayres. The data set includes 1665 rows which each correspond to an individual player, and it includes 15 variables which categorize the players by Division, Gender, and Team, and provide game statistics for each player. 
 
-Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact, calculated as the difference between the points scored and the points allowed while the player is on the court) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. These variables all relate to a player's effectiveness on the field, which is why we will use them to predict pls_mns_per_game. We will also stratify by division and gender, so that we ensure that we have an accurate model for each group. We will have four models in the final product, DI Men, DI Women, DIII Men, and DIII Women.
+Ultimate Frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact, calculated as the difference between the points scored and the points allowed while the player is on the court) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. These variables all relate to a player's effectiveness on the field, which is why we will use them to predict pls_mns_per_game. We will also stratify by division and gender, so that we ensure that we have an accurate model for each group. We will have four models in the final product, DI Men, DI Women, DIII Men, and DIII Women.
 
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
@@ -99,7 +100,9 @@ ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)
        subtitle = "By division and gender") + theme_minimal() +
   scale_color_viridis_d()
 ```
+
 ## Modeling methodology
+
 We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. From the scatter plots for our four predictor variables against the outcome variable of +/-, we see a fairly linear relationship between the variables. For pts_per_game, all of the relationships are positively linear. For ds_per_game and ast_per_game, all of the relationships are positive except for Division 3 Women. Additionally, for turns_per_game, the regression lines for both Division 1 and 3 have negative slopes. These differences, along with the slight variations in the box plots for player's +/- score by Division and Gender, suggest that these predictors act differently by Division and Gender. Therefore, we will fit the model for each combination of division and gender, rather than utilizing a blanket model for all types of players.
 
 # Results
@@ -128,7 +131,6 @@ import seaborn as sns
 ```
 
 ### *Linear Regression*
-
 
 ```{python fit-lm-by-division-gender}
 import pandas as pd
@@ -368,7 +370,6 @@ r2_scores_df = pd.DataFrame(rows)
 r2_scores_df = r2_scores_df.sort_values(by=['level', 'gender']).reset_index(drop=True)
 ```
 
-
 ```{r}
 temp <- py$r2_scores_df %>% mutate_if(is.numeric, round, 4)
 
@@ -377,8 +378,6 @@ temp %>% as_tibble() %>% gt() %>%
   tab_header(
     title = "Cross-validated R-sqaured values")
 ```
-
-
 
 #### **Prediction Model**
 
@@ -439,6 +438,7 @@ player_stats = {
 predictions = predict_plus_minus_for_player(ultimate_data, 'Division 1', 'Men', player_stats, results_ridge2dg, results_lmdg, results_df_lasso)
 
 ```
+
 ```{r}
 predictions <-  py$predictions
 predictions %>% as.data.frame() %>% gt()
@@ -448,9 +448,9 @@ paste("Linear Prediction:", round(predictions$linear_prediction, 3))
 paste0("Lasso Prediction: ", round(predictions$lasso_prediction, 3), "0")
 
 ```
+
 All three models predict that this player has a plus/minus of approximately 4.3 (pretty good!). The models behave similarly, but have slight variations in prediction.
-    
-      
+
 #### Discussion and Conclusion
 
 In this project, we explored the feasibility of building a predictive model to estimate a player's plus-minus score in college Ultimate Frisbee based on individual game statistics: turnovers per game, defensive blocks per game, and assists per game. We implemented three distinct regression models—Linear Regression, Ridge Regression, and Lasso Regression—to evaluate how well these features could predict the target outcome.
@@ -467,8 +467,7 @@ To ensure consistent model evaluation, we split the dataset by both **division (
 
 1.  **Small feature set**: Only three predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
 2.  **Potential data imbalance**: The performance of the models across different (division, gender) groups could vary depending on how many observations we had per group. If some subgroups had fewer examples, model stability would be affected.
-3. **No non-linear modeling**: While most of the relationships we observe appear somewhat linear in exploratory analysis, fitting a nonlinear model, such as a random forest, may be a better analysis route. 
-
+3.  **No non-linear modeling**: While most of the relationships we observe appear somewhat linear in exploratory analysis, fitting a nonlinear model, such as a random forest, may be a better analysis route.
 
 ### Data Reliability and Validity
 
@@ -482,7 +481,7 @@ The dataset was sourced from a publicly available website and published within t
 
 Our analytical choices—using regularized regression methods and controlling for gender and division—are appropriate given our objective and dataset size. We standardized our features using `StandardScaler()` and implemented a consistent 80/20 train-test split across all models (as shown in the `lasso_reg` function), which helped avoid data leakage and ensured fair comparison between models.
 
-Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions. 
+Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions.
 
 ## Ethical Considerations
 
