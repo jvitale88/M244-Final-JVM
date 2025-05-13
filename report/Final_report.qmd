@@ -3,6 +3,7 @@ title: "Final_report"
 format: html
 editor: visual
 echo: false
+warning: false
 ---
 
 ```{r load-packages}
@@ -26,7 +27,6 @@ Ultimate frisbee is a sport growing in popularity at the collegiate level and wi
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
 ```{r load-data}
-here()
 ultimate_data <- read_csv(here('data', "ulti_clean.csv"))
 ```
 
@@ -51,40 +51,16 @@ cor(summary_data, use = "complete.obs")
 
 ```{r gender-&-plus-minus}
 # Plot player's plus-minus scores and their gender
-ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = gender)) +
+ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = division)) +
   geom_boxplot() +
   labs(
     title = "Gender vs. Player's +/- Score",
-    x = "Gender",
-    y = "Player's +/- Score"
-  ) +
+    x = "Division",
+    y = "Player's +/- Score",
+    fill = "Division") +
   theme_minimal()
 
-# Filter table to create a new table called d3 that only contains d3 level players
-d3 <- ultimate_data[ultimate_data$level == "Division 3",]
 
-# Plot  Division 3 level player's plus-minus scores and their gender
-ggplot(d3, aes(x = gender, y = plus_minus, fill = gender)) +
-  geom_boxplot() +
-  labs(
-    title = "Division 3 Gender vs. Player's +/- Score",
-    x = "Gender",
-    y = "Player's +/- Score"
-  ) +
-  theme_minimal()
-
-# Filter table to create a new table called d1 that only contains d3 level players
-d1 <- ultimate_data[ultimate_data$level == "Division 1",]
-
-# Plot  Division 1 level player's plus-minus scores and their gender
-ggplot(d1, aes(x = gender, y = plus_minus, fill = gender)) +
-  geom_boxplot() +
-  labs(
-    title = "Division 1 Gender vs. Player's +/- Score",
-    x = "Gender",
-    y = "Player's +/- Score"
-  ) +
-  theme_minimal()
 ```
 
 ```{r plus-minus-&-other-variable}
@@ -92,7 +68,11 @@ ggplot(d1, aes(x = gender, y = plus_minus, fill = gender)) +
 # Plot a player's plus-minus score and their points per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
-  labs(x = "Points per game", y = "Plus/Minus", color = "Division") + 
+  labs(x = "Points per game", 
+       y = "Plus/Minus", 
+       color = "Division",
+       title = "Points per game vs. player impact",
+       subtitle = "By division and gender") + 
   theme_minimal() +
   scale_color_viridis_d()
 
@@ -100,22 +80,26 @@ ultimate_data %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)
 ultimate_data %>% ggplot(aes(x = ds_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F)+
   theme_minimal() + scale_x_log10() + 
-  labs(x = "Ds per game", y = "Plus/Minus", color = "Division") +
+  labs(x = "Ds per game", y = "Plus/Minus", color = "Division",
+       title = "Ds per game vs. player impact",
+       subtitle = "By division and gender") +
   scale_color_viridis_d()
 
 # Plot a player's plus-minus score and their turns per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
-  labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  labs(x = "Turns per game", y = "Plus/Minus", color = "Division", title = "Turns per game vs. player impact",
+       subtitle = "By division and gender") + theme_minimal() +
   scale_color_viridis_d()
 
 # Plot a player's plus-minus score and their assists per game for the different divisions and genders
 ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)) + 
    geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
-  labs(x = "Assists per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  labs(x = "Assists per game", y = "Plus/Minus", color = "Division", title = "Assists per game vs. player impact",
+       subtitle = "By division and gender") + theme_minimal() +
   scale_color_viridis_d()
 ```
-
+## Modeling methodology
 We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. From the scatter plots for our four predictor variables against the outcome variable of +/-, we see a fairly linear relationship between the variables. For pts_per_game, all of the relationships are positively linear. For ds_per_game and ast_per_game, all of the relationships are positive except for Division 3 Women. Additionally, for turns_per_game, the regression lines for both Division 1 and 3 have negative slopes. These differences, along with the slight variations in the box plots for player's +/- score by Division and Gender, suggest that these predictors act differently by Division and Gender. Therefore, we will fit the model for each combination of division and gender, rather than utilizing a blanket model for all types of players.
 
 # Results
@@ -145,7 +129,6 @@ import seaborn as sns
 
 ### *Linear Regression*
 
-#### Function to Fit Model by Division and Gender
 
 ```{python fit-lm-by-division-gender}
 import pandas as pd
@@ -199,7 +182,18 @@ def linear_reg_by_group(ultimate_data, test_size=0.2, random_state=42):
 # Run the adapted function
 results_lmdg = linear_reg_by_group(ultimate_data)
 
+for (level, gender), result in results_lmdg.items():
+    score = result['score']
+    n_samples = result['n_samples']
+    coefficients = result['coefficients']
+    intercept = result['intercept']
 
+    print(f"{level} {gender} — Mean R² (CV): {score:.3f} (n={n_samples})")
+    print("  Coefficients:")
+    for feat, coef in coefficients.items():
+        print(f"    {feat}: {coef:.3f}")
+    print(f"  Intercept: {intercept:.3f}")
+    print()
 ```
 
 ### *Ridge Regression*
@@ -270,9 +264,6 @@ for (level, gender), result in results_ridge2dg.items():
 
 ### *Lasso Regression*
 
-
-## Function grouped by division and gender
-
 ```{python}
 import pandas as pd
 from sklearn.linear_model import LassoCV
@@ -335,17 +326,28 @@ def lasso_reg_by_group(ultimate_data, test_size=0.2, random_state=42):
 # Run the adapted function
 results_df_lasso = lasso_reg_by_group(ultimate_data)
 
+for (level, gender), result in results_df_lasso.items():
+    score = result['score']
+    n_samples = result['n_samples']
+    coefficients = result['coefficients']
+    intercept = result['intercept']
+
+    print(f"{level} {gender} — Mean R² (CV): {score:.3f} (n={n_samples})")
+    print("  Coefficients:")
+    for feat, coef in coefficients.items():
+        print(f"    {feat}: {coef:.3f}")
+    print(f"  Intercept: {intercept:.3f}")
+    print()
 ```
 
-#print results
 ```{python}
-# Create an empty list to store each row of the DataFrame
+# Create an empty list
 rows = []
 
-# Get all unique (level, gender) pairs from the model dictionaries
+# Get all unique pairs from models dicts
 all_keys = set(results_lmdg.keys()) | set(results_df_lasso.keys()) | set(results_ridge2dg.keys())
 
-# Loop through each key and collect R² values from each model
+# Loop through each pair for R2 
 for key in all_keys:
     level, gender = key
     linear_r2 = results_lmdg.get(key, {}).get('score', None)
@@ -360,13 +362,10 @@ for key in all_keys:
         'Ridge': ridge_r2
     })
 
-# Create the DataFrame
+# Create df
 r2_scores_df = pd.DataFrame(rows)
 
-# Optional: sort for readability
 r2_scores_df = r2_scores_df.sort_values(by=['level', 'gender']).reset_index(drop=True)
-
-# Display the result
 ```
 
 
@@ -382,6 +381,8 @@ temp %>% as_tibble() %>% gt() %>%
 
 
 #### **Prediction Model**
+
+We can use our model to predict player impact based on historical performance statistics. For example, we can predict the plus/minus score of a Division 1 Male athlete with an average of 2.5 turns per game, 1.0 Ds per game, and 4.0 assists per game.
 
 ```{python}
 def predict_plus_minus_for_player(ultimate_data, level, gender, player_stats, results_ridge2dg, results_lmdg, results_df_lasso):
@@ -437,21 +438,22 @@ player_stats = {
 # Example usage with pre-trained models (assuming you have the models already trained)
 predictions = predict_plus_minus_for_player(ultimate_data, 'Division 1', 'Men', player_stats, results_ridge2dg, results_lmdg, results_df_lasso)
 
-# Print predictions
-print(f"Predictions for Division 1 Male Player:")
-print(f"  Ridge Prediction: {predictions['ridge_prediction']}")
-print(f"  Linear Prediction: {predictions['linear_prediction']}")
-print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
+```
+```{r}
+predictions <-  py$predictions
+predictions %>% as.data.frame() %>% gt()
+print("Predictions for Division 1 Male Player:")
+paste("Ridge Prediction:", round(predictions$ridge_prediction, 3))
+paste("Linear Prediction:", round(predictions$linear_prediction, 3))
+paste0("Lasso Prediction: ", round(predictions$lasso_prediction, 3), "0")
 
 ```
-
-Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
-
-**Provide only the main results from your analysis.** The goal is not to do an exhaustive data analysis (calculate every possible statistic and perform every possible procedure for all variables). Rather, you should demonstrate that you are proficient at asking meaningful questions and answering them using data, that you are skilled in interpreting and presenting results, and that you can accomplish these tasks using R and Python. More is not always better.
-
+All three models predict that this player has a plus/minus of approximately 4.3 (pretty good!). The models behave similarly, but have slight variations in prediction.
+    
+      
 #### Discussion and Conclusion
 
-In this project, we explored the feasibility of building a predictive model to estimate a player's plus-minus score in college Ultimate Frisbee based on individual game statistics: turnovers per game, defensive blocks per game, assists per game, and points per game. We implemented three distinct regression models—Linear Regression, Ridge Regression, and Lasso Regression—to evaluate how well these features could predict the target outcome.
+In this project, we explored the feasibility of building a predictive model to estimate a player's plus-minus score in college Ultimate Frisbee based on individual game statistics: turnovers per game, defensive blocks per game, and assists per game. We implemented three distinct regression models—Linear Regression, Ridge Regression, and Lasso Regression—to evaluate how well these features could predict the target outcome.
 
 Both **Linear** and **Ridge Regression** models produced very similar predictions across multiple gender-division combinations, suggesting that the underlying relationships in the data are fairly linear and do not require strong regularization to prevent overfitting.
 
@@ -463,9 +465,10 @@ To ensure consistent model evaluation, we split the dataset by both **division (
 
 ## Limitations
 
-1.  **Small feature set**: Only four predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
+1.  **Small feature set**: Only three predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
 2.  **Potential data imbalance**: The performance of the models across different (division, gender) groups could vary depending on how many observations we had per group. If some subgroups had fewer examples, model stability would be affected.
-3.  **Lack of cross-validation metrics**: Although we evaluated the models qualitatively through predictions, we did not include quantitative metrics such as RMSE or R² for each subgroup. Including these would allow for a more robust evaluation of model accuracy and generalizability.
+3. **No non-linear modeling**: While most of the relationships we observe appear somewhat linear in exploratory analysis, fitting a nonlinear model, such as a random forest, may be a better analysis route. 
+
 
 ### Data Reliability and Validity
 
@@ -479,13 +482,13 @@ The dataset was sourced from a publicly available website and published within t
 
 Our analytical choices—using regularized regression methods and controlling for gender and division—are appropriate given our objective and dataset size. We standardized our features using `StandardScaler()` and implemented a consistent 80/20 train-test split across all models (as shown in the `lasso_reg` function), which helped avoid data leakage and ensured fair comparison between models.
 
-Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions. However, our choice of a fixed alpha parameter (rather than using cross-validation to tune hyperparameters) could limit model optimization and generalizability.
+Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions. 
 
 ## Ethical Considerations
 
 Benefits:
 
--   Enhanced Performance Insights: Our model can provide players and coaches with data-driven insights, potentially informing training and strategy.​
+-   Enhanced Performance Insights: Our model can provide players and coaches with data-driven insights, potentially informing training and strategy.
 
 -   Objective Evaluation: By quantifying performance metrics, we aim to reduce subjective biases in player assessments.
 
@@ -497,8 +500,8 @@ Risks:
 
 -   Bias and Fairness: If our model inadvertently reflects existing biases in the data, it could perpetuate inequalities, especially if used in decision-making processes.
 
-Overall, this project demonstrates the potential of data-driven approaches to enhance our understanding of individual performance in ultimate Frisbee. While our models show promise within the scope of elite college-level play, future work must address broader data inclusion to effective application.
+Overall, this project demonstrates the potential of data-driven approaches to enhance our understanding of individual performance in Ultimate Frisbee. While our models show promise within the scope of elite college-level play, future work must address broader data inclusion to effective application.
 
 ## What We Would Have Done Differently
 
-If we were to restart the project, we would do far more a rigorous analysis of the variables used. While all the variables currently chosen did show evidence affecting the target variable, some additional work in order to confirm that these four are the most influencial out of all the possible options would have further.
+If we were to restart the project, we would do far more a rigorous analysis of the variables used. While all the variables currently chosen did show evidence affecting the target variable, some additional work in order to confirm that these four are the most influencial out of all the possible options would have further. We also could have included non-linear modeling techniques, incorporated data from other tournaments/countries/years, and evaluated the impact of region, school, school size, and other variables on plus/minus.
