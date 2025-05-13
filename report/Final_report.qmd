@@ -5,7 +5,7 @@ editor: visual
 echo: false
 ---
 
-```{r}
+```{r load-packages}
 library(tidyverse)
 library(gtsummary)
 library(ggplot2)
@@ -25,7 +25,7 @@ Ultimate frisbee is a sport growing in popularity at the collegiate level and wi
 
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
-```{r}
+```{r load-data}
 here()
 ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ultimate_data.csv")
 ```
@@ -121,7 +121,7 @@ We are fitting all three models that predict continuous variables: linear, LASSO
 
 # Results
 
-```{python}
+```{python load-data-and-packages}
 ultimate_data = r.ultimate_data
 
 import pandas as pd
@@ -142,13 +142,14 @@ from sklearn.linear_model import LassoCV
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import statsmodels.api as sm
 ```
 
 ### *Linear Regression*
 
 #### Function to Fit Model to Complete Data Set
 
-```{python}
+```{python fit-lm-complete-dataset}
 
 def linear_reg(ultimate_data, test_size=0.2, random_state=42):
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
@@ -189,7 +190,7 @@ print("Intercept:", results_linear['intercept'])
 
 #### Function to Fit Model by Division and Gender
 
-```{python}
+```{python fit-lm-by-division-gender}
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
@@ -261,7 +262,7 @@ ultimate_data[['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game', 
 
 #### Function to Fit Model to Complete Data Set
 
-```{python}
+```{python fit-ridge-complete-dataset}
 def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
     # Define features and target
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
@@ -289,22 +290,82 @@ def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
     score = model.score(X_test, y_test)
     coef = dict(zip(feature_cols, model.coef_))
     intercept = model.intercept_
+    
+    # Number of obs (n) and predictors (p)
+    n = len(y_test)  
+    p = X_test.shape[1]
+    
+    # Calculate Adjusted R²
+    adjusted_r2 = 1 - (1 - score) * (n - 1) / (n - p - 1)
 
     return {
         'model': model,
         'score (R^2)': score,
         'coefficients': coef,
         'intercept': intercept,
-        'scaler': scaler
+        'scaler': scaler,
+        'adjusted (R^2)': adjusted_r2
     }
-```
-
-```{python}
+    
 results = ridge_reg(ultimate_data)
 
 print("R² Score:", results['score (R^2)'])
 print("Coefficients:", results['coefficients'])
 print("Intercept:", results['intercept'])
+print("Adjusted R²:", results['adjusted (R^2)'])
+```
+
+```{python try-dropping-pts_per_game}
+def ridge_reg2(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    # Train Ridge Regression
+    model = Ridge(alpha=alpha)
+    model.fit(X_train, y_train)
+
+    # Output
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+    
+    # Number of obs (n) and predictors (p)
+    n = len(y_test)  
+    p = X_test.shape[1]
+    
+    # Calculate Adjusted R²
+    adjusted_r2 = 1 - (1 - score) * (n - 1) / (n - p - 1)
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler,
+        'adjusted (R^2)': adjusted_r2
+    }
+    
+results = ridge_reg2(ultimate_data)
+
+print("R² Score:", results['score (R^2)'])
+print("Coefficients:", results['coefficients'])
+print("Intercept:", results['intercept'])
+print("Adjusted R²:", results['adjusted (R^2)'])
 ```
 
 #### Function to Fit Model by Division and Gender
