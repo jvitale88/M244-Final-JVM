@@ -27,7 +27,7 @@ Since the data was already pretty clean, we did not have to do much data tidying
 
 ```{r}
 here()
-ultimate_data <- read_csv(here('data', 'ulti_clean.csv'))
+ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ultimate_data.csv")
 ```
 
 # Methodology
@@ -682,7 +682,6 @@ print(f"Predictions for Division 1 Male Player:")
 print(f"  Ridge Prediction: {predictions['ridge_prediction']}")
 print(f"  Linear Prediction: {predictions['linear_prediction']}")
 print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
-
 ```
 
 ```{python}
@@ -772,7 +771,6 @@ print(f"  Linear Prediction: {predictions['linear_prediction']}")
 print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
 
 results_ridge_cv
-
 ```
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
@@ -795,7 +793,7 @@ To ensure consistent model evaluation, we split the dataset by both **division (
 
 1.  **Small feature set**: Only four predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
 2.  **Potential data imbalance**: The performance of the models across different (division, gender) groups could vary depending on how many observations we had per group. If some subgroups had fewer examples, model stability would be affected.
-3.  Lack of cross-validation metrics: Although we evaluated the models qualitatively through predictions, we did not include quantitative metrics such as RMSE or R² for each subgroup. Including these would allow for a more robust evaluation of model accuracy and generalizability.
+3.  **Lack of cross-validation metrics**: Although we evaluated the models qualitatively through predictions, we did not include quantitative metrics such as RMSE or R² for each subgroup. Including these would allow for a more robust evaluation of model accuracy and generalizability.
 
 ### Data Reliability and Validity
 
