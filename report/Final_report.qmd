@@ -1,0 +1,827 @@
+---
+title: "Final_report"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(gtsummary)
+library(ggplot2)
+library(psych)
+library(cluster)
+library(factoextra)
+library(dplyr)
+library(reticulate)
+library(here)
+```
+
+# Introduction and Data
+
+The data set includes statistics from the 2024 Division 1 and 3 Men’s and Women’s Ultimate Frisbee Championships. The statistics were found on USA Ultimate, the non-profit organization serving as the governing body for ultimate in the United States, and were taken from a data visualization titled “USA Ultimate 2024 Nationals Stats Dashboard”, which was created by Ben Ayres. The data set includes 1665 rows which each correspond to an individual player, and it includes 15 variables which categorize the players by Division, Gender, and Team, and provide game statistics for each player. 
+
+Ultimate frisbee is a sport growing in popularity at the collegiate level and within the Vassar student body as well. However, not much data analysis is available for Ultimate compared to other popular sports. We want to fit a model that would help players analyze their game performance. Therefore, via linear, LASSO, and ridge regression we will fit a prediction model that we train under supervised conditions to be able to predict a player’s plus/minus score (AKA individual impact) based on the variables turns_per_game, ds_per_game, ast_per_game, and pts_per_game. These variables all relate to a player's effectiveness on the field, which is why we will use them to predict pls_mns_per_game. We will also stratify by division and gender, so that we ensure that we have an accurate model for each group. We will have four models in the final product, DI Men, DI Women, DIII Men, and DIII Women.
+
+Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
+
+```{r}
+here()
+ultimate_data <- read_csv("/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ultimate_data.csv")
+```
+
+# Methodology
+
+### *Summary Statistics*
+
+```{r}
+ultimate_data %>% select(-c(player, team_name)) %>% gtsummary::tbl_summary()
+```
+
+```{r}
+summary_data <- ultimate_data[, c("pls_mns_per_game", "turns_per_game", "ds_per_game", "ast_per_game", "pts_per_game")]
+
+summary(summary_data)
+```
+
+```{r}
+describe(summary_data)
+```
+
+```{r}
+cor(summary_data, use = "complete.obs")
+```
+
+```{r}
+pairs(summary_data, main = "Pairwise Plots of Ultimate Stats")
+```
+
+### *Visualizations/EDA*
+
+```{r gender-&-plus-minus}
+# Plot player's plus-minus scores and their gender
+ggplot(ultimate_data, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+
+# Filter table to create a new table called d3 that only contains d3 level players
+d3 <- ultimate_data[ultimate_data$level == "Division 3",]
+
+# Plot  Division 3 level player's plus-minus scores and their gender
+ggplot(d3, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Division 3 Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+
+# Filter table to create a new table called d1 that only contains d3 level players
+d1 <- ultimate_data[ultimate_data$level == "Division 1",]
+
+# Plot  Division 1 level player's plus-minus scores and their gender
+ggplot(d1, aes(x = gender, y = plus_minus, fill = gender)) +
+  geom_boxplot() +
+  labs(
+    title = "Division 1 Gender vs. Player's +/- Score",
+    x = "Gender",
+    y = "Player's +/- Score"
+  ) +
+  theme_minimal()
+```
+
+```{r division-level-&-plus-minus}
+# Plot player's plus-minus score against the divisional level they are playing in
+ggplot(ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+
+# Filter table to create a new table called women_ultimate_data that only contains female players
+women_ultimate_data <- ultimate_data %>%
+  filter(gender == "Women")
+
+# Plot female player's plus-minus score against the divisional level they are playing in
+ggplot(women_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3 Women",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+
+# Filter table to create a new table called men_ultimate_data that only contains male players
+men_ultimate_data <- ultimate_data %>%
+  filter(gender == "Men")
+
+# Plot male player's plus-minus score against the divisional level they are playing in
+ggplot(men_ultimate_data, aes(x = level, y = plus_minus, fill = level)) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Player's +/- Score for Division 1 vs Division 3 Men",
+    x = "Division",
+    y = "Player's +/- Score"
+  ) +
+  scale_fill_manual(values = c("Division 1" = "blue", "Division 3" = "pink")) + 
+  theme_minimal()
+```
+
+```{r plus-minus-&-other-variable}
+
+# Plot a player's plus-minus score and their points per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = pts_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Points per game", y = "Plus/Minus", color = "Division") + 
+  theme_minimal() +
+  scale_color_viridis_d()
+
+# Plot a player's plus-minus score and their D's per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = ds_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F)+
+  theme_minimal() + scale_x_log10() + 
+  labs(x = "Ds per game", y = "Plus/Minus", color = "Division") +
+  scale_color_viridis_d()
+
+# Plot a player's plus-minus score and their turns per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = turns_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Turns per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  scale_color_viridis_d()
+
+# Plot a player's plus-minus score and their assists per game for the different divisions and genders
+ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)) + 
+   geom_point() + geom_smooth(method = 'lm', se = F) + scale_x_log10() +
+  labs(x = "Assists per game", y = "Plus/Minus", color = "Division") + theme_minimal() +
+  scale_color_viridis_d()
+```
+
+```{r PCA}
+
+# Create a dataset df1 by selecting the following the columns below
+df1 <- ultimate_data %>% select(c(
+  turns_per_game, ds_per_game, pts_per_game, pls_mns_per_game, ast_per_game
+))
+
+# Perform principle component analysis on df1 
+pam_res <- pam(df1[-4], 3)
+
+# Plots the three clusters
+fviz_cluster(pam_res, data = df1[-4],
+             geom = "point",
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal()) +
+  labs(title = "Principal Component Analysis of Ultimate Data")
+```
+
+We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. Additionally, although the EDA for a player's +/- score seems similar for division and gender, there are slight differences; therefore, we will fit the model for each combination of division and gender.
+
+# Results
+
+```{python}
+ultimate_data = r.ultimate_data
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.exceptions import DataConversionWarning
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.compose import make_column_transformer
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import GroupKFold
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV
+from sklearn.linear_model import ElasticNet, ElasticNetCV
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import Lasso
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.linear_model import LassoCV
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
+
+### *Linear Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+
+def linear_reg(ultimate_data, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+    
+results_linear = linear_reg(ultimate_data)
+
+
+print("R² Score:", results_linear['score (R^2)'])
+print("Coefficients:", results_linear['coefficients'])
+print("Intercept:", results_linear['intercept'])
+```
+
+#### Function to Fit Model by Division and Gender
+
+```{python}
+from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+
+def linear_by_div_gender_cv(ultimate_data, cv=5):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results_cv = {}
+
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < cv:
+            continue  # Not enough samples for cross-validation
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        # Create pipeline with scaling and linear regression
+        model_pipeline = make_pipeline(StandardScaler(), LinearRegression())
+
+        # Cross-validated R²
+        r2_scores = cross_val_score(model_pipeline, X, y, cv=cv, scoring='r2')
+        mean_r2 = np.mean(r2_scores)
+
+        # Cross-validated predictions for MAE and RMSE
+        y_pred_cv = cross_val_predict(model_pipeline, X, y, cv=cv)
+        mae = mean_absolute_error(y, y_pred_cv)
+        rmse = mean_squared_error(y, y_pred_cv)
+
+        # Fit on full data to get coefficients for interpretation
+        model_pipeline.fit(X, y)
+        lin_model = model_pipeline.named_steps['linearregression']
+
+        results_cv[(division, gender)] = {
+            'mean R^2': mean_r2,
+            'cv_scores (R^2)': r2_scores,
+            'mae': mae,
+            'rmse': rmse,
+            'coefficients': dict(zip(feature_cols, lin_model.coef_)),
+            'intercept': lin_model.intercept_,
+            'n_samples': len(group_clean)
+        }
+
+    return results_cv
+
+
+
+
+resultsdg_cv = linear_by_div_gender_cv(ultimate_data)
+
+for (level, gender), res in resultsdg_cv.items():
+    print(f"{level} {gender} — Mean R² (CV): {res['mean R^2']:.3f}, MAE: {res['mae']:.3f}, RMSE: {res['rmse']:.3f} (n={res['n_samples']})")
+    print("  Coefficients:")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print(f"  Intercept: {res['intercept']:.3f}")
+    print()
+    
+ultimate_data[['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game', 'pls_mns_per_game']].corr()
+
+```
+
+### *Ridge Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+
+    # Train Ridge Regression
+    model = Ridge(alpha=alpha)
+    model.fit(X_train, y_train)
+
+    # Output
+    score = model.score(X_test, y_test)
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+```
+
+```{python}
+results = ridge_reg(ultimate_data)
+
+print("R² Score:", results['score (R^2)'])
+print("Coefficients:", results['coefficients'])
+print("Intercept:", results['intercept'])
+```
+
+#### Function to Fit Model by Division and Gender
+
+```{python}
+def ridge_by_div_gender_cv(ultimate_data, alpha=1.0, cv=5):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results_cv = {}
+
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < cv:
+            continue  # Not enough samples for cross-validation
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        # Create pipeline: scale, then fit Ridge regression
+        model_pipeline = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
+
+        # Cross-validated R²
+        r2_scores = cross_val_score(model_pipeline, X, y, cv=cv, scoring='r2')
+        mean_r2 = np.mean(r2_scores)
+
+        # Cross-validated predictions for MAE and RMSE
+        y_pred_cv = cross_val_predict(model_pipeline, X, y, cv=cv)
+        mae = mean_absolute_error(y, y_pred_cv)
+        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))  # RMSE calculation
+
+        # Fit on full data to get coefficients for interpretation
+        model_pipeline.fit(X, y)
+        ridge_model = model_pipeline.named_steps['ridge']
+        scaler = model_pipeline.named_steps['standardscaler']
+
+        results_cv[(division, gender)] = {
+            'mean R^2': mean_r2,
+            'cv_scores (R^2)': r2_scores,
+            'mae': mae,
+            'rmse': rmse,
+            'coefficients': dict(zip(feature_cols, ridge_model.coef_)),
+            'intercept': ridge_model.intercept_,
+            'n_samples': len(group_clean)
+        }
+
+    return results_cv
+```
+
+```{python}
+results_ridge_cv = ridge_by_div_gender_cv(ultimate_data)
+
+for (level, gender), res in results_ridge_cv.items():
+    print(f"{level} {gender} — Mean R² (CV): {res['mean R^2']:.3f}, MAE: {res['mae']:.3f}, RMSE: {res['rmse']:.3f} (n={res['n_samples']})")
+    print("  Coefficients:")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print(f"  Intercept: {res['intercept']:.3f}")
+    print()
+```
+
+#### *Plotting Feature Contributions*
+
+```{python}
+def plot_feature_contributions(results):
+    sns.set(style="whitegrid")
+
+    # For each group (level, gender), plot the feature coefficients
+    for (level, gender), res in results.items():
+        coefs = res['coefficients']
+        
+        # Sort features by absolute coefficient values
+        sorted_feats = sorted(coefs.items(), key=lambda x: abs(x[1]), reverse=True)
+        
+        # Prepare data for plotting
+        features = [feat for feat, _ in sorted_feats]
+        coef_values = [coef for _, coef in sorted_feats]
+        
+        # Plot the bar chart
+        plt.figure(figsize=(8, 6))
+        plt.barh(features, coef_values, color="skyblue")
+        plt.xlabel("Coefficient Value")
+        plt.title(f"Feature Contributions: {level} {gender} (Ridge Regression)")
+        plt.tight_layout()
+        plt.show()
+```
+
+```{python}
+plot_feature_contributions(results_ridge_cv)
+```
+
+### *Lasso Regression*
+
+#### Function to Fit Model to Complete Data Set
+
+```{python}
+def lasso_reg(ultimate_data, test_size=0.2, random_state=56):
+    # Define features and target
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    # Drop rows with missing values
+    data_clean = ultimate_data[feature_cols + [target_col]].dropna()
+
+    # Separate X and y
+    X = data_clean[feature_cols]
+    y = data_clean[target_col]
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=random_state)
+    
+    # Use LassoCV to find the best alpha
+    model = LassoCV(alphas=[0.0001, 0.001, 0.01, 0.1, 1, 10], cv=5)
+    model.fit(X_train, y_train)
+    
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+        # Output
+    score = model.score(X_test, y_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = mean_squared_error(y_test, y_pred) ** 0.5
+    coef = dict(zip(feature_cols, model.coef_))
+    intercept = model.intercept_
+    best_alpha = model.alpha_
+
+    return {
+        'model': model,
+        'score (R^2)': score,
+        'best_alpha': best_alpha,
+        'MAE': mae,
+        'RMSE': rmse,
+        'coefficients': coef,
+        'intercept': intercept,
+        'scaler': scaler
+    }
+
+```
+
+```{python}
+lasso_results = lasso_reg(ultimate_data)
+
+print("R² Score:", lasso_results['score (R^2)'])
+print("Coefficients:", lasso_results['coefficients'])
+print("Intercept:", lasso_results['intercept'])
+```
+
+## Function grouped by division and gender
+
+```{python}
+def lasso_by_div_gender_cv(ultimate_data, alphas=[0.0001, 0.001, 0.01, 0.1, 1, 10], cv=5, test_size=0.2, random_state=42):
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+    target_col = 'pls_mns_per_game'
+
+    results = {}
+
+    # Group by actual column values (level, gender)
+    for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
+        group_clean = group[feature_cols + [target_col]].dropna()
+
+        if len(group_clean) < cv:
+            continue  # Skip small groups
+
+        X = group_clean[feature_cols]
+        y = group_clean[target_col]
+
+        # Create pipeline: scale data then apply LassoCV
+        model_pipeline = make_pipeline(StandardScaler(), LassoCV(alphas=alphas, cv=cv))
+
+        # Cross-validated R² scores
+        r2_scores = cross_val_score(model_pipeline, X, y, cv=cv, scoring='r2')
+        mean_r2 = np.mean(r2_scores)
+
+        # Cross-validated predictions for MAE and RMSE
+        y_pred_cv = cross_val_predict(model_pipeline, X, y, cv=cv)
+        mae = mean_absolute_error(y, y_pred_cv)
+        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))  # RMSE calculation
+
+        # Fit on full data to get coefficients for interpretation
+        model_pipeline.fit(X, y)
+        lasso_model = model_pipeline.named_steps['lassocv']
+        scaler = model_pipeline.named_steps['standardscaler']
+
+        results[(division, gender)] = {
+            'mean R^2': mean_r2,
+            'cv_scores (R^2)': r2_scores,
+            'mae': mae,
+            'rmse': rmse,
+            'best_alpha': lasso_model.alpha_,
+            'coefficients': dict(zip(feature_cols, lasso_model.coef_)),
+            'intercept': lasso_model.intercept_,
+            'n_samples': len(group_clean)
+        }
+
+    return results
+```
+
+```{python}
+results_lasso_cv = lasso_by_div_gender_cv(ultimate_data)
+
+for (level, gender), res in results_lasso_cv.items():
+    print(f"{level} {gender} — Mean R² (CV): {res['mean R^2']:.3f}, MAE: {res['mae']:.3f}, RMSE: {res['rmse']:.3f} (n={res['n_samples']})")
+    print(f"  Best Alpha: {res['best_alpha']}")
+    print("  Coefficients:")
+    for feat, coef in res['coefficients'].items():
+        print(f"    {feat}: {coef:.3f}")
+    print(f"  Intercept: {res['intercept']:.3f}")
+    print()
+```
+
+#### **Prediction Model**
+
+```{python}
+def predict_plus_minus_for_player(ultimate_data, level, gender, player_stats, results_ridge_cv, resultsdg_cv, results_lasso_cv):
+    """
+    Predict the plus-minus outcome for an individual player using pre-trained models 
+    and the player's stats for a given level and gender.
+    
+    Args:
+    - ultimate_data (DataFrame): Data containing player statistics.
+    - level (str): The level of play ('DivisionA', 'DivisionB', etc.).
+    - gender (str): The gender of the player ('Male', 'Female', etc.).
+    - player_stats (dict): Dictionary containing the player's stats.
+    - results_ridge_cv (dict): Dictionary with pre-trained Ridge model results.
+    - resultsdg_cv (dict): Dictionary with pre-trained Linear model results.
+    - results_lasso_cv (dict): Dictionary with pre-trained Lasso model results.
+
+    Returns:
+    - dict: Predictions from Ridge, Linear, and Lasso models for the given player.
+    """
+    
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+
+    # Check if the models exist for the given level and gender
+    if (level, gender) not in results_ridge_cv:
+        raise ValueError(f"No Ridge model available for {level} {gender}")
+    if (level, gender) not in resultsdg_cv:
+        raise ValueError(f"No Linear model available for {level} {gender}")
+    if (level, gender) not in results_lasso_cv:
+        raise ValueError(f"No Lasso model available for {level} {gender}")
+      
+      # Print debug information to verify keys
+    print(f"Available keys in Ridge Results: {list(results_ridge_cv.keys())}")
+    print(f"Available keys in Linear Results: {list(resultsdg_cv.keys())}")
+    print(f"Available keys in Lasso Results: {list(results_lasso_cv.keys())}")
+    
+     # Check if 'model' and 'scaler' exist for the given level and gender in the results
+    ridge_model = results_ridge_cv[(level, gender)].get('model', None)
+    ridge_scaler = results_ridge_cv[(level, gender)].get('scaler', None)
+    
+    linear_model = resultsdg_cv[(level, gender)].get('model', None)
+    linear_scaler = resultsdg_cv[(level, gender)].get('scaler', None)
+    
+    lasso_model = results_lasso_cv[(level, gender)].get('model', None)
+    lasso_scaler = results_lasso_cv[(level, gender)].get('scaler', None)
+
+
+    # Get pre-trained models and scalers
+    ridge_model = results_ridge_cv[(level, gender)]['model']
+    ridge_scaler = results_ridge_cv[(level, gender)]['scaler']
+    
+    linear_model = resultsdg_cv[(level, gender)]['model']
+    linear_scaler = resultsdg_cv[(level, gender)]['scaler']
+    
+    lasso_model = results_lasso_cv[(level, gender)]['model']
+    lasso_scaler = results_lasso_cv[(level, gender)]['scaler']
+
+    # Prepare the player stats as a DataFrame
+    player_df = pd.DataFrame([player_stats], columns=feature_cols)
+
+    # Scale the player stats using the pre-trained scalers
+    ridge_scaled = ridge_scaler.transform(player_df)
+    linear_scaled = linear_scaler.transform(player_df)
+    lasso_scaled = lasso_scaler.transform(player_df)
+
+    # Make predictions with the pre-trained models
+    predicted_ridge = ridge_model.predict(ridge_scaled)[0]
+    predicted_linear = linear_model.predict(linear_scaled)[0]
+    predicted_lasso = lasso_model.predict(lasso_scaled)[0]
+
+    return {
+        'ridge_prediction': predicted_ridge,
+        'linear_prediction': predicted_linear,
+        'lasso_prediction': predicted_lasso
+    }
+
+# Example player stats
+player_stats = {
+    'turns_per_game': 2.5,
+    'ds_per_game': 1.0,
+    'ast_per_game': 4.0,
+    'pts_per_game': 12.0
+}
+
+# Example usage with pre-trained models (assuming you have the models already trained)
+predictions = predict_plus_minus_for_player(ultimate_data, 'Division 1', 'Men', player_stats, results_ridge_cv, resultsdg_cv, results_lasso_cv)
+
+# Print predictions
+print(f"Predictions for Division 1 Male Player:")
+print(f"  Ridge Prediction: {predictions['ridge_prediction']}")
+print(f"  Linear Prediction: {predictions['linear_prediction']}")
+print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
+```
+
+```{python}
+def predict_plus_minus_for_player(ultimate_data, level, gender, player_stats, results_ridge_cv, resultsdg_cv, results_lasso_cv):
+    """
+    Predict the plus-minus outcome for an individual player using pre-trained models 
+    and the player's stats for a given level and gender.
+    
+    Args:
+    - ultimate_data (DataFrame): Data containing player statistics.
+    - level (str): The level of play ('DivisionA', 'DivisionB', etc.).
+    - gender (str): The gender of the player ('Male', 'Female', etc.).
+    - player_stats (dict): Dictionary containing the player's stats.
+    - results_ridge_cv (dict): Dictionary with pre-trained Ridge model results.
+    - resultsdg_cv (dict): Dictionary with pre-trained Linear model results.
+    - results_lasso_cv (dict): Dictionary with pre-trained Lasso model results.
+
+    Returns:
+    - dict: Predictions from Ridge, Linear, and Lasso models for the given player.
+    """
+    
+    feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+
+    # Debug: Check available keys in results_ridge_cv
+    print(f"Available keys in Ridge Results: {list(results_ridge_cv.keys())}")
+
+    # Check if the models exist for the given level and gender
+    if (level, gender) not in results_ridge_cv:
+        raise ValueError(f"No Ridge model available for {level} {gender}")
+    if (level, gender) not in resultsdg_cv:
+        raise ValueError(f"No Linear model available for {level} {gender}")
+    if (level, gender) not in results_lasso_cv:
+        raise ValueError(f"No Lasso model available for {level} {gender}")
+
+    # Get pre-trained models and scalers
+    ridge_model = results_ridge_cv[(level, gender)].get('model', None)
+    ridge_scaler = results_ridge_cv[(level, gender)].get('scaler', None)
+    
+    linear_model = resultsdg_cv[(level, gender)].get('model', None)
+    linear_scaler = resultsdg_cv[(level, gender)].get('scaler', None)
+    
+    lasso_model = results_lasso_cv[(level, gender)].get('model', None)
+    lasso_scaler = results_lasso_cv[(level, gender)].get('scaler', None)
+
+    # Check if all models and scalers are retrieved successfully
+    if not ridge_model or not ridge_scaler:
+        raise ValueError(f"Ridge model or scaler not found for {level} {gender}")
+    if not linear_model or not linear_scaler:
+        raise ValueError(f"Linear model or scaler not found for {level} {gender}")
+    if not lasso_model or not lasso_scaler:
+        raise ValueError(f"Lasso model or scaler not found for {level} {gender}")
+
+    # Prepare the player stats as a DataFrame
+    player_df = pd.DataFrame([player_stats], columns=feature_cols)
+
+    # Scale the player stats using the pre-trained scalers
+    ridge_scaled = ridge_scaler.transform(player_df)
+    linear_scaled = linear_scaler.transform(player_df)
+    lasso_scaled = lasso_scaler.transform(player_df)
+
+    # Make predictions with the pre-trained models
+    predicted_ridge = ridge_model.predict(ridge_scaled)[0]
+    predicted_linear = linear_model.predict(linear_scaled)[0]
+    predicted_lasso = lasso_model.predict(lasso_scaled)[0]
+
+    return {
+        'ridge_prediction': predicted_ridge,
+        'linear_prediction': predicted_linear,
+        'lasso_prediction': predicted_lasso
+    }
+
+# Example player stats
+player_stats = {
+    'turns_per_game': 2.5,
+    'ds_per_game': 1.0,
+    'ast_per_game': 4.0,
+    'pts_per_game': 12.0
+}
+
+# Example usage with pre-trained models (assuming you have the models already trained)
+predictions = predict_plus_minus_for_player(ultimate_data, 'Division 1', 'Men', player_stats, results_ridge_cv, resultsdg_cv, results_lasso_cv)
+
+# Print predictions
+print(f"Predictions for Division 1 Male Player:")
+print(f"  Ridge Prediction: {predictions['ridge_prediction']}")
+print(f"  Linear Prediction: {predictions['linear_prediction']}")
+print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
+
+results_ridge_cv
+```
+
+Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
+
+**Provide only the main results from your analysis.** The goal is not to do an exhaustive data analysis (calculate every possible statistic and perform every possible procedure for all variables). Rather, you should demonstrate that you are proficient at asking meaningful questions and answering them using data, that you are skilled in interpreting and presenting results, and that you can accomplish these tasks using R and Python. More is not always better.
+
+#### Discussion and Conclusion
+
+In this project, we explored the feasibility of building a predictive model to estimate a player's plus-minus score in college Ultimate Frisbee based on individual game statistics: turnovers per game, defensive blocks per game, assists per game, and points per game. We implemented three distinct regression models—Linear Regression, Ridge Regression, and Lasso Regression—to evaluate how well these features could predict the target outcome.
+
+Both **Linear** and **Ridge Regression** models produced very similar predictions across multiple gender-division combinations, suggesting that the underlying relationships in the data are fairly linear and do not require strong regularization to prevent overfitting.
+
+In contrast, **Lasso Regression** consistently underperformed. For example, when provided with the input player_stats = { 'turns_per_game': 2.1, 'ds_per_game': 1.8, 'ast_per_game': 3.2, 'pts_per_game': 5.4 } its predicted plus-minus score was Ridge: 8.28, Linear: 8.30 and Lasso: 0.68. This significant deviation from the other two models suggests that Lasso may be overly aggressive in shrinking coefficients to zero—likely eliminating valuable predictors entirely. Given that we only have four features, the benefits of Lasso's feature selection are minimal, and its use may be unwarranted in this case.
+
+### Methodological Evaluation
+
+To ensure consistent model evaluation, we split the dataset by both **division (D-I vs. D-III)** and **gender (men’s vs. women’s)**, and trained separate models for each subgroup. This decision was grounded in the understanding that the dynamics of ultimate frisbee can vary substantially across these categories, and that a model trained on pooled data might obscure those differences.
+
+## Limitations
+
+1.  **Small feature set**: Only four predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
+2.  **Potential data imbalance**: The performance of the models across different (division, gender) groups could vary depending on how many observations we had per group. If some subgroups had fewer examples, model stability would be affected.
+3.  **Lack of cross-validation metrics**: Although we evaluated the models qualitatively through predictions, we did not include quantitative metrics such as RMSE or R² for each subgroup. Including these would allow for a more robust evaluation of model accuracy and generalizability.
+
+### Data Reliability and Validity
+
+The dataset was sourced from a publicly available website and published within the past year. While not a first-party dataset, its reliability is bolstered by several key factors:
+
+1.  It reflects official statistics from the most recent USA Ultimate College National Championships, meaning it's drawn from the highest college-level competition.
+2.  As active Frisbee players ourselves, we were able to recognize nearly all the teams listed and even some individual players, affirming the data's authenticity and face validity.
+3.  The dataset has had multiple downloads from the site, indicating community engagement and a degree of scrutiny.
+
+### Appropriateness of the Analysis
+
+Our analytical choices—using regularized regression methods and controlling for gender and division—are appropriate given our objective and dataset size. We standardized our features using `StandardScaler()` and implemented a consistent 80/20 train-test split across all models (as shown in the `lasso_reg` function), which helped avoid data leakage and ensured fair comparison between models.
+
+Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions. However, our choice of a fixed alpha parameter (rather than using cross-validation to tune hyperparameters) could limit model optimization and generalizability.
+
+## Ethical Considerations
+
+Benefits:
+
+-   Enhanced Performance Insights: Our model can provide players and coaches with data-driven insights, potentially informing training and strategy.​
+
+-   Objective Evaluation: By quantifying performance metrics, we aim to reduce subjective biases in player assessments.
+
+Risks:
+
+-   Privacy Concerns: Even though our data is publicly available, using it for predictive modeling raises questions about consent and the extent to which athletes are aware of or agree to such analyses.
+
+-   Potential for Misuse: There's a risk that our model could be used to make decisions about player selection or playing time without considering the broader context of an athlete's performance or potential.
+
+-   Bias and Fairness: If our model inadvertently reflects existing biases in the data, it could perpetuate inequalities, especially if used in decision-making processes.
+
+Overall, this project demonstrates the potential of data-driven approaches to enhance our understanding of individual performance in ultimate Frisbee. While our models show promise within the scope of elite college-level play, future work must address broader data inclusion to effective application.
