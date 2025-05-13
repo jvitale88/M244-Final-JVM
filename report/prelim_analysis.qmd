@@ -275,36 +275,29 @@ def linear_by_div_gender_cv(ultimate_data, cv=5):
 
     for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
         group_clean = group[feature_cols + [target_col]].dropna()
-
         if len(group_clean) < cv:
-            continue  # Not enough samples for cross-validation
+            continue
 
         X = group_clean[feature_cols]
         y = group_clean[target_col]
 
-        # Create pipeline with scaling and linear regression
-        model_pipeline = make_pipeline(StandardScaler(), LinearRegression())
+        pipeline = make_pipeline(StandardScaler(), LinearRegression())
 
-        # Cross-validated R²
-        r2_scores = cross_val_score(model_pipeline, X, y, cv=cv, scoring='r2')
+        r2_scores = cross_val_score(pipeline, X, y, cv=cv, scoring='r2')
         mean_r2 = np.mean(r2_scores)
 
-        # Cross-validated predictions for MAE and RMSE
-        y_pred_cv = cross_val_predict(model_pipeline, X, y, cv=cv)
+        y_pred_cv = cross_val_predict(pipeline, X, y, cv=cv)
         mae = mean_absolute_error(y, y_pred_cv)
-        rmse = mean_squared_error(y, y_pred_cv)
+        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))
 
-        # Fit on full data to get coefficients for interpretation
-        model_pipeline.fit(X, y)
-        lin_model = model_pipeline.named_steps['linearregression']
+        pipeline.fit(X, y)
 
         results_cv[(division, gender)] = {
+            'pipeline': pipeline,
             'mean R^2': mean_r2,
             'cv_scores (R^2)': r2_scores,
             'mae': mae,
             'rmse': rmse,
-            'coefficients': dict(zip(feature_cols, lin_model.coef_)),
-            'intercept': lin_model.intercept_,
             'n_samples': len(group_clean)
         }
 
@@ -312,18 +305,20 @@ def linear_by_div_gender_cv(ultimate_data, cv=5):
 
 
 
-
 resultsdg_cv = linear_by_div_gender_cv(ultimate_data)
+
+feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
 
 for (level, gender), res in resultsdg_cv.items():
     print(f"{level} {gender} — Mean R² (CV): {res['mean R^2']:.3f}, MAE: {res['mae']:.3f}, RMSE: {res['rmse']:.3f} (n={res['n_samples']})")
-    print("  Coefficients:")
-    for feat, coef in res['coefficients'].items():
-        print(f"    {feat}: {coef:.3f}")
-    print(f"  Intercept: {res['intercept']:.3f}")
-    print()
+
+    model = res['pipeline'].named_steps['linearregression']
     
-ultimate_data[['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game', 'pls_mns_per_game']].corr()
+    print("  Coefficients:")
+    for feat, coef in zip(feature_cols, model.coef_):
+        print(f"    {feat}: {coef:.3f}")
+    print(f"  Intercept: {model.intercept_:.3f}")
+    print()
 
 ```
 
@@ -369,13 +364,7 @@ def ridge_reg(ultimate_data, alpha=1.0, test_size=0.2, random_state=42):
     }
 ```
 
-```{python}
-results = ridge_reg(ultimate_data)
 
-print("R² Score:", results['score (R^2)'])
-print("Coefficients:", results['coefficients'])
-print("Intercept:", results['intercept'])
-```
 
 #### Function to Fit Model by Division and Gender
 
@@ -388,37 +377,29 @@ def ridge_by_div_gender_cv(ultimate_data, alpha=1.0, cv=5):
 
     for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
         group_clean = group[feature_cols + [target_col]].dropna()
-
         if len(group_clean) < cv:
-            continue  # Not enough samples for cross-validation
+            continue
 
         X = group_clean[feature_cols]
         y = group_clean[target_col]
 
-        # Create pipeline: scale, then fit Ridge regression
-        model_pipeline = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
+        pipeline = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
 
-        # Cross-validated R²
-        r2_scores = cross_val_score(model_pipeline, X, y, cv=cv, scoring='r2')
+        r2_scores = cross_val_score(pipeline, X, y, cv=cv, scoring='r2')
         mean_r2 = np.mean(r2_scores)
 
-        # Cross-validated predictions for MAE and RMSE
-        y_pred_cv = cross_val_predict(model_pipeline, X, y, cv=cv)
+        y_pred_cv = cross_val_predict(pipeline, X, y, cv=cv)
         mae = mean_absolute_error(y, y_pred_cv)
-        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))  # RMSE calculation
+        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))
 
-        # Fit on full data to get coefficients for interpretation
-        model_pipeline.fit(X, y)
-        ridge_model = model_pipeline.named_steps['ridge']
-        scaler = model_pipeline.named_steps['standardscaler']
+        pipeline.fit(X, y)
 
         results_cv[(division, gender)] = {
+            'pipeline': pipeline,
             'mean R^2': mean_r2,
             'cv_scores (R^2)': r2_scores,
             'mae': mae,
             'rmse': rmse,
-            'coefficients': dict(zip(feature_cols, ridge_model.coef_)),
-            'intercept': ridge_model.intercept_,
             'n_samples': len(group_clean)
         }
 
@@ -428,12 +409,17 @@ def ridge_by_div_gender_cv(ultimate_data, alpha=1.0, cv=5):
 ```{python}
 results_ridge_cv = ridge_by_div_gender_cv(ultimate_data)
 
+feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+
 for (level, gender), res in results_ridge_cv.items():
     print(f"{level} {gender} — Mean R² (CV): {res['mean R^2']:.3f}, MAE: {res['mae']:.3f}, RMSE: {res['rmse']:.3f} (n={res['n_samples']})")
+    
+    model = res['pipeline'].named_steps['ridge']
+    
     print("  Coefficients:")
-    for feat, coef in res['coefficients'].items():
+    for feat, coef in zip(feature_cols, model.coef_):
         print(f"    {feat}: {coef:.3f}")
-    print(f"  Intercept: {res['intercept']:.3f}")
+    print(f"  Intercept: {model.intercept_:.3f}")
     print()
 ```
 
@@ -530,63 +516,58 @@ print("Intercept:", lasso_results['intercept'])
 ## Function grouped by division and gender
 
 ```{python}
-def lasso_by_div_gender_cv(ultimate_data, alphas=[0.0001, 0.001, 0.01, 0.1, 1, 10], cv=5, test_size=0.2, random_state=42):
+def lasso_by_div_gender_cv(ultimate_data, alpha=0.001, cv=5):
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
     target_col = 'pls_mns_per_game'
 
-    results = {}
+    results_cv = {}
 
-    # Group by actual column values (level, gender)
     for (division, gender), group in ultimate_data.groupby(['level', 'gender']):
         group_clean = group[feature_cols + [target_col]].dropna()
-
         if len(group_clean) < cv:
-            continue  # Skip small groups
+            continue
 
         X = group_clean[feature_cols]
         y = group_clean[target_col]
 
-        # Create pipeline: scale data then apply LassoCV
-        model_pipeline = make_pipeline(StandardScaler(), LassoCV(alphas=alphas, cv=cv))
+        pipeline = make_pipeline(StandardScaler(), Lasso(alpha=alpha, max_iter=10000))
 
-        # Cross-validated R² scores
-        r2_scores = cross_val_score(model_pipeline, X, y, cv=cv, scoring='r2')
+        r2_scores = cross_val_score(pipeline, X, y, cv=cv, scoring='r2')
         mean_r2 = np.mean(r2_scores)
 
-        # Cross-validated predictions for MAE and RMSE
-        y_pred_cv = cross_val_predict(model_pipeline, X, y, cv=cv)
+        y_pred_cv = cross_val_predict(pipeline, X, y, cv=cv)
         mae = mean_absolute_error(y, y_pred_cv)
-        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))  # RMSE calculation
+        rmse = np.sqrt(mean_squared_error(y, y_pred_cv))
 
-        # Fit on full data to get coefficients for interpretation
-        model_pipeline.fit(X, y)
-        lasso_model = model_pipeline.named_steps['lassocv']
-        scaler = model_pipeline.named_steps['standardscaler']
+        pipeline.fit(X, y)
 
-        results[(division, gender)] = {
+        results_cv[(division, gender)] = {
+            'pipeline': pipeline,
             'mean R^2': mean_r2,
             'cv_scores (R^2)': r2_scores,
             'mae': mae,
             'rmse': rmse,
-            'best_alpha': lasso_model.alpha_,
-            'coefficients': dict(zip(feature_cols, lasso_model.coef_)),
-            'intercept': lasso_model.intercept_,
             'n_samples': len(group_clean)
         }
 
-    return results
+    return results_cv
 ```
 
 ```{python}
 results_lasso_cv = lasso_by_div_gender_cv(ultimate_data)
 
+feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game', 'pts_per_game']
+
 for (level, gender), res in results_lasso_cv.items():
     print(f"{level} {gender} — Mean R² (CV): {res['mean R^2']:.3f}, MAE: {res['mae']:.3f}, RMSE: {res['rmse']:.3f} (n={res['n_samples']})")
-    print(f"  Best Alpha: {res['best_alpha']}")
+    
+    lasso_model = res['pipeline'].named_steps['lasso']
+    
+    print(f"  Best Alpha: {lasso_model.alpha}")
     print("  Coefficients:")
-    for feat, coef in res['coefficients'].items():
+    for feat, coef in zip(feature_cols, lasso_model.coef_):
         print(f"    {feat}: {coef:.3f}")
-    print(f"  Intercept: {res['intercept']:.3f}")
+    print(f"  Intercept: {lasso_model.intercept_:.3f}")
     print()
 ```
 
@@ -620,59 +601,33 @@ def predict_plus_minus_for_player(ultimate_data, level, gender, player_stats, re
         raise ValueError(f"No Linear model available for {level} {gender}")
     if (level, gender) not in results_lasso_cv:
         raise ValueError(f"No Lasso model available for {level} {gender}")
-      
-      # Print debug information to verify keys
-    print(f"Available keys in Ridge Results: {list(results_ridge_cv.keys())}")
-    print(f"Available keys in Linear Results: {list(resultsdg_cv.keys())}")
-    print(f"Available keys in Lasso Results: {list(results_lasso_cv.keys())}")
-    
-     # Check if 'model' and 'scaler' exist for the given level and gender in the results
-    ridge_model = results_ridge_cv[(level, gender)].get('model', None)
-    ridge_scaler = results_ridge_cv[(level, gender)].get('scaler', None)
-    
-    linear_model = resultsdg_cv[(level, gender)].get('model', None)
-    linear_scaler = resultsdg_cv[(level, gender)].get('scaler', None)
-    
-    lasso_model = results_lasso_cv[(level, gender)].get('model', None)
-    lasso_scaler = results_lasso_cv[(level, gender)].get('scaler', None)
 
-
-    # Get pre-trained models and scalers
-    ridge_model = results_ridge_cv[(level, gender)]['model']
-    ridge_scaler = results_ridge_cv[(level, gender)]['scaler']
-    
-    linear_model = resultsdg_cv[(level, gender)]['model']
-    linear_scaler = resultsdg_cv[(level, gender)]['scaler']
-    
-    lasso_model = results_lasso_cv[(level, gender)]['model']
-    lasso_scaler = results_lasso_cv[(level, gender)]['scaler']
+    # Extract full pipelines
+    ridge_pipeline = results_ridge_cv[(level, gender)]['pipeline']
+    linear_pipeline = resultsdg_cv[(level, gender)]['pipeline']
+    lasso_pipeline = results_lasso_cv[(level, gender)]['pipeline']
 
     # Prepare the player stats as a DataFrame
     player_df = pd.DataFrame([player_stats], columns=feature_cols)
 
-    # Scale the player stats using the pre-trained scalers
-    ridge_scaled = ridge_scaler.transform(player_df)
-    linear_scaled = linear_scaler.transform(player_df)
-    lasso_scaled = lasso_scaler.transform(player_df)
-
-    # Make predictions with the pre-trained models
-    predicted_ridge = ridge_model.predict(ridge_scaled)[0]
-    predicted_linear = linear_model.predict(linear_scaled)[0]
-    predicted_lasso = lasso_model.predict(lasso_scaled)[0]
+    # Make predictions using the full pipeline (automatically handles scaling)
+    predicted_ridge = ridge_pipeline.predict(player_df)[0]
+    predicted_linear = linear_pipeline.predict(player_df)[0]
+    predicted_lasso = lasso_pipeline.predict(player_df)[0]
 
     return {
         'ridge_prediction': predicted_ridge,
         'linear_prediction': predicted_linear,
         'lasso_prediction': predicted_lasso
     }
-
+    
+    
 # Example player stats
 player_stats = {
     'turns_per_game': 2.5,
     'ds_per_game': 1.0,
     'ast_per_game': 4.0,
-    'pts_per_game': 12.0
-}
+    'pts_per_game': 2.0}
 
 # Example usage with pre-trained models (assuming you have the models already trained)
 predictions = predict_plus_minus_for_player(ultimate_data, 'Division 1', 'Men', player_stats, results_ridge_cv, resultsdg_cv, results_lasso_cv)
@@ -682,6 +637,7 @@ print(f"Predictions for Division 1 Male Player:")
 print(f"  Ridge Prediction: {predictions['ridge_prediction']}")
 print(f"  Linear Prediction: {predictions['linear_prediction']}")
 print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
+
 ```
 
 ```{python}
@@ -771,7 +727,9 @@ print(f"  Linear Prediction: {predictions['linear_prediction']}")
 print(f"  Lasso Prediction: {predictions['lasso_prediction']}")
 
 results_ridge_cv
+
 ```
+
 
 Showcase how you arrived at answers to your research question using the techniques we have learned in class (and beyond, if you’re feeling adventurous).
 
