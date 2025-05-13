@@ -117,7 +117,7 @@ ultimate_data %>% ggplot(aes(x = ast_per_game, y = plus_minus, color = division)
   scale_color_viridis_d()
 ```
 
-We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. Additionally, although the EDA for a player's +/- score seems similar for division and gender, there are slight differences; therefore, we will fit the model for each combination of division and gender.
+We are fitting all three models that predict continuous variables: linear, LASSO, and ridge regression. Based on the results, we will select the model that is most accurate. From the scatter plots for our four predictor variables against the outcome variable of +/-, we see a fairly linear relationship between the variables. For pts_per_game, all of the relationships are positively linear. For ds_per_game and ast_per_game, all of the relationships are positive except for Division 3 Women. Additionally, for turns_per_game, the regression lines for both Division 1 and 3 have negative slopes. These differences, along with the slight variations in the box plots for player's +/- score by Division and Gender, suggest that these predictors act differently by Division and Gender. Therefore, we will fit the model for each combination of division and gender, rather than utilizing a blanket model for all types of players.
 
 # Results
 
