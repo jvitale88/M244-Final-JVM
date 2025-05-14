@@ -1,5 +1,5 @@
 ---
-title: "Math 255: Final Report"
+title: "Math 244: Final Report"
 author: "Mia Zottoli, Vishnu Lakshman, Julia Vitale"
 format: html
 editor: visual
@@ -30,7 +30,7 @@ Since the data was already pretty clean, we did not have to do much data tidying
 
 ```{r load-data}
 # Load datasets
-ultimate_data <- read_csv(here('data', "ulti_clean.csv"))
+ultimate_data <- read_csv('/Users/Vishnu/Documents/Classes/MATH 244 - Intermediate Data Science/M244-Final-JVM/data/ultimate_data.csv')
 ```
 
 # Methodology
@@ -460,7 +460,7 @@ paste0("Lasso Prediction: ", round(predictions$lasso_prediction, 3), "0")
 
 All three models predict that this player has a plus/minus of approximately 4.6 (pretty good!). The models behave similarly, but have slight variations in prediction.
 
-#### Discussion and Conclusion
+## Discussion and Conclusion
 
 In this project, we explored the feasibility of building a predictive model to estimate a player's plus-minus score in college Ultimate Frisbee based on individual game statistics: turnovers per game, defensive blocks per game, and assists per game. We implemented three distinct regression models—Linear Regression, Ridge Regression, and Lasso Regression—to evaluate how well these features could predict the target outcome.
 
@@ -476,7 +476,7 @@ In summary, our results suggest that individual game statistics like turnovers, 
 
 To ensure consistent model evaluation, we split the dataset by both **division (D-I vs. D-III)** and **gender (men’s vs. women’s)**, and trained separate models for each subgroup. This decision was grounded in the understanding that the dynamics of ultimate frisbee can vary substantially across these categories, and that a model trained on pooled data might obscure those differences.
 
-## Limitations
+### Limitations
 
 1.  **Small feature set**: Only three predictor variables were used. While these are intuitively related to performance, plus-minus is inherently a team-dependent metric influenced by many contextual factors (e.g., opponent strength, line composition, playing time) that are not captured here.
 2.  **Potential data imbalance**: The performance of the models across different (division, gender) groups could vary depending on how many observations we had per group. If some subgroups had fewer examples, model stability would be affected.
@@ -496,7 +496,7 @@ Our analytical choices—using regularized regression methods and controlling fo
 
 Using multiple models allowed us to assess the sensitivity of plus-minus predictions to different regularization schemes. Ridge, in particular, proved effective in slightly dampening noisy relationships while preserving feature contributions.
 
-## Ethical Considerations
+### Ethical Considerations
 
 Benefits:
 
