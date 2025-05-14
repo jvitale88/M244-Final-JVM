@@ -8,6 +8,7 @@ warning: false
 ---
 
 ```{r load-packages}
+#Load r packages here
 library(tidyverse)
 library(gtsummary)
 library(ggplot2)
@@ -28,6 +29,7 @@ Ultimate Frisbee is a sport growing in popularity at the collegiate level and wi
 Since the data was already pretty clean, we did not have to do much data tidying. We just did some string manipulation to extract the school name from the team name, creating a new column called 'school', and had to convert some character variables to factors.
 
 ```{r load-data}
+# Load datasets
 ultimate_data <- read_csv(here('data', "ulti_clean.csv"))
 ```
 
@@ -36,12 +38,14 @@ ultimate_data <- read_csv(here('data', "ulti_clean.csv"))
 ### *Summary Statistics*
 
 ```{r summary-statistics-for-relevant-variables}
+# Print summary statistics
 summary_data <- ultimate_data[, c("pls_mns_per_game", "turns_per_game", "ds_per_game", "ast_per_game", "pts_per_game")]
 
 summary(summary_data)
 ```
 
 ```{r view-correlations-between-relevant-variables}
+# Calculate correlations between variables
 cor(summary_data, use = "complete.obs")
 ```
 
@@ -105,6 +109,8 @@ We are fitting all three models that predict continuous variables: linear, LASSO
 # Results
 
 ```{python load-data-and-packages}
+#Load python packages here
+
 ultimate_data = r.ultimate_data
 
 import pandas as pd
@@ -197,7 +203,7 @@ for (level, gender), result in results_lmdg.items():
 
 ### *Ridge Regression*
 
-```{python try-dropping-pts_per_game}
+```{python fit-ridge-by-division-gender}
 def ridge_reg_by_group2(ultimate_data, test_size=0.2, random_state=42, alpha=0.1):
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game']
     target_col = 'pls_mns_per_game'
@@ -265,13 +271,14 @@ for (level, gender), result in results_ridge2dg.items():
 
 ## Function grouped by division and gender
 
-```{python}
+```{python fit-lasso-by-division-gender}
 import pandas as pd
 from sklearn.linear_model import LassoCV
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+# Create function
 def lasso_reg_by_group(ultimate_data, test_size=0.2, random_state=42):
     # Define features and target
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game']
@@ -341,14 +348,14 @@ for (level, gender), result in results_df_lasso.items():
     print()
 ```
 
-```{python}
+```{python df-R^2-across-models}
 # Create an empty list
 rows = []
 
 # Get all unique pairs from models dicts
 all_keys = set(results_lmdg.keys()) | set(results_df_lasso.keys()) | set(results_ridge2dg.keys())
 
-# Loop through each pair for R2 
+# Loop through each pair for R^2 
 for key in all_keys:
     level, gender = key
     linear_r2 = results_lmdg.get(key, {}).get('score', None)
@@ -369,7 +376,8 @@ r2_scores_df = pd.DataFrame(rows)
 r2_scores_df = r2_scores_df.sort_values(by=['level', 'gender']).reset_index(drop=True)
 ```
 
-```{r}
+```{r print-df}
+# Print df on cross-validated R-squared values
 temp <- py$r2_scores_df %>% mutate_if(is.numeric, round, 4)
 
 library(gt)
@@ -382,7 +390,9 @@ temp %>% as_tibble() %>% gt() %>%
 
 We can use our model to predict player impact based on historical performance statistics. For example, we can predict the plus/minus score of a Division 1 Male athlete with an average of 2.5 turns per game, 1.0 Ds per game, and 4.0 assists per game.
 
-```{python}
+```{python predict-plus-minus-score}
+
+# Create function to predict plus-minus statistic
 def predict_plus_minus_for_player(ultimate_data, level, gender, player_stats, results_ridge2dg, results_lmdg, results_df_lasso):
     
     feature_cols = ['turns_per_game', 'ds_per_game', 'ast_per_game']
@@ -438,7 +448,7 @@ predictions = predict_plus_minus_for_player(ultimate_data, 'Division 1', 'Men', 
 
 ```
 
-```{r}
+```{r print-model-predictions}
 predictions <-  py$predictions
 predictions %>% as.data.frame() %>% gt()
 print("Predictions for Division 1 Male Player:")
